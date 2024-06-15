@@ -336,6 +336,13 @@ class AutocompleteHintInput(TextInput):
             self._reset_button_color(self.dropdown_options[self.selection])
             self.text = self.dropdown_options[self.selection].item_name
             self.selection = -1
+    
+    def on_focus(self, instance, value: bool, *largs):
+        if value:
+            self.on_text(instance, self.text)
+        else:
+            self.dropdown.dismiss()
+            self.dropdown_options.clear()
 
     def on_text(self, instance, value: str) -> None:
         self.selection = -1
