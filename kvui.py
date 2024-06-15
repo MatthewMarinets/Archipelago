@@ -403,7 +403,7 @@ class AutocompleteHintInput(TextInput):
             self.selection = min(self.selection + 1, len(self.dropdown_options) - 1)
         if self.dropdown_options:
             visible_options = self.dropdown.size[1] / self.dropdown_options[0].size[1]
-            if abs(visible_options - len(self.dropdown_options)) < 0.1:
+            if len(self.dropdown_options) - visible_options < 0.1:
                 self.dropdown.scroll_y = 1
             else:
                 half_visible_options = visible_options * 0.5
