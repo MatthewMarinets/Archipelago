@@ -300,37 +300,102 @@ class SelectableLabel(RecycleDataViewBehavior, TooltipLabel):
         self.selected = is_selected
 
 
+class AutocompleteHintDropdownButton(Button):
+    def __init__(self, item_name: str, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.markup = True
+        self.item_name = item_name
+        self.text_size[0] = self.size[0]
+        self.padding[0] = dp(5)
+
+    def on_size(self, *args):
+        self.text_size[0] = self.size[0]
+
+
 class AutocompleteHintInput(TextInput):
     min_chars = NumericProperty(3)
+    text_validate_unfocus = False
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
+        self.selection = -1
+        self.dropdown_options: typing.List[AutocompleteHintDropdownButton] = []
 
         self.dropdown = DropDown()
-        self.dropdown.bind(on_select=lambda instance, x: setattr(self, 'text', x))
+        self.dropdown.bind(on_select=self._on_dropdown_select)
         self.bind(on_text_validate=self.on_message)
+    
+    def _on_dropdown_select(self, instance, selection_text: str) -> None:
+        self.text = selection_text
+        self.focus = True
 
     def on_message(self, instance):
-        App.get_running_app().commandprocessor("!hint "+instance.text)
+        if self.selection == -1:
+            App.get_running_app().commandprocessor("!hint " + self.text)
+        else:
+            self._reset_button_color(self.dropdown_options[self.selection])
+            self.text = self.dropdown_options[self.selection].item_name
+            self.selection = -1
 
-    def on_text(self, instance, value):
+    def on_text(self, instance, value: str) -> None:
+        self.selection = -1
         if len(value) >= self.min_chars:
             self.dropdown.clear_widgets()
+            self.dropdown_options.clear()
             ctx: context_type = App.get_running_app().ctx
+            if ctx.game is None:
+                return
             item_names = ctx.item_names._game_store[ctx.game].values()
 
-            def on_press(button: Button):
-                return self.dropdown.select(button.text)
-            lowered = value.lower()
+            def on_press(button: AutocompleteHintDropdownButton):
+                return self.dropdown.select(button.item_name)
+            lowered = value.casefold()
             for item_name in item_names:
-                if lowered in item_name.lower():
-                    btn = Button(text=item_name, size_hint_y=None, height=dp(30))
+                if lowered in item_name.casefold():
+                    highlighted_item_name = re.sub(
+                        re.escape(value),
+                        lambda m: f'[color={JSONtoTextParser.color_codes["orange"]}]{m.group()}[/color]',
+                        item_name,
+                        flags=re.IGNORECASE
+                    )
+                    btn = AutocompleteHintDropdownButton(
+                        item_name=item_name,
+                        text=highlighted_item_name,
+                        size_hint_y=None,
+                        height=dp(30),
+                    )
                     btn.bind(on_release=on_press)
                     self.dropdown.add_widget(btn)
+                    self.dropdown_options.append(btn)
             if not self.dropdown.attach_to:
                 self.dropdown.open(self)
         else:
             self.dropdown.dismiss()
+            self.dropdown_options.clear()
+        
+    @staticmethod
+    def _reset_button_color(button: AutocompleteHintDropdownButton) -> None:
+        button.background_color = [1,1,1,1]
+    
+    def keyboard_on_key_down(
+        self,
+        window,
+        keycode: typing.Tuple[int, str],
+        text: typing.Optional[str],
+        modifiers: typing.List[str]
+    ) -> bool:
+        if keycode[1] not in ('up', 'down'):
+            return super().keyboard_on_key_down(window, keycode, text, modifiers)
+
+        if self.selection >= 0:
+            self._reset_button_color(self.dropdown_options[self.selection])
+        if keycode[1] == 'up':
+            self.selection = max(self.selection - 1, -1)
+        elif keycode[1] == 'down':
+            self.selection = min(self.selection + 1, len(self.dropdown_options) - 1)
+        if self.selection >= 0:
+            self.dropdown_options[self.selection].background_color = [1.7, 1.7, 1.6, 1]
+        return True
 
 
 class HintLabel(RecycleDataViewBehavior, BoxLayout):
