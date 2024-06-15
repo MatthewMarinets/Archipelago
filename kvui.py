@@ -340,6 +340,7 @@ class AutocompleteHintInput(TextInput):
     def on_text(self, instance, value: str) -> None:
         self.selection = -1
         if len(value) >= self.min_chars:
+            self.dropdown.scroll_y = 1
             self.dropdown.clear_widgets()
             self.dropdown_options.clear()
             ctx: context_type = App.get_running_app().ctx
@@ -393,6 +394,13 @@ class AutocompleteHintInput(TextInput):
             self.selection = max(self.selection - 1, -1)
         elif keycode[1] == 'down':
             self.selection = min(self.selection + 1, len(self.dropdown_options) - 1)
+        if self.dropdown_options:
+            visible_options = self.dropdown.size[1] / self.dropdown_options[0].size[1]
+            if abs(visible_options - len(self.dropdown_options)) < 0.1:
+                self.dropdown.scroll_y = 1
+            else:
+                half_visible_options = visible_options * 0.5
+                self.dropdown.scroll_y = 1 - min(1, max(0, (self.selection - half_visible_options) / (len(self.dropdown_options) - visible_options)))
         if self.selection >= 0:
             self.dropdown_options[self.selection].background_color = [1.7, 1.7, 1.6, 1]
         return True
