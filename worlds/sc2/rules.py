@@ -1346,16 +1346,22 @@ class SC2Logic:
                     item_names.MISTWING,
                     item_names.CALADRIUS,
                     item_names.OPPRESSOR,
-                    item_names.PULSAR,
                     item_names.DRAGOON,
                 },
                 self.player,
             )
-            or state.has_all({item_names.TRIREME, item_names.TRIREME_SOLAR_BEAM}, self.player)
-            or state.has_all({item_names.WRATHWALKER, item_names.WRATHWALKER_AERIAL_TRACKING}, self.player)
-            or state.has_all({item_names.WARP_PRISM, item_names.WARP_PRISM_PHASE_BLASTER}, self.player)
-            or self.advanced_tactics
-            and state.has_any({item_names.HIGH_TEMPLAR, item_names.SIGNIFIER, item_names.SENTRY, item_names.ENERGIZER}, self.player)
+            or state.has_all((item_names.TRIREME, item_names.TRIREME_SOLAR_BEAM), self.player)
+            or state.has_all((item_names.WRATHWALKER, item_names.WRATHWALKER_AERIAL_TRACKING), self.player)
+            or state.has_all((item_names.WARP_PRISM, item_names.WARP_PRISM_PHASE_BLASTER), self.player)
+            or (self.advanced_tactics
+                and state.has_any((
+                    item_names.HIGH_TEMPLAR,
+                    item_names.SIGNIFIER,
+                    item_names.SENTRY,
+                    item_names.ENERGIZER,
+                    item_names.PULSAR,
+                ), self.player)
+            )
             or self.protoss_can_merge_archon(state)
             or self.protoss_can_merge_dark_archon(state)
         )
