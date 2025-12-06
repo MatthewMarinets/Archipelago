@@ -371,7 +371,7 @@ class MissionConnection:
     campaign: SC2Campaign
     connect_to: int  # -1 connects to Menu
 
-    def __init__(self, connect_to: int, campaign = SC2Campaign.GLOBAL) -> None:
+    def __init__(self, connect_to: int, campaign: SC2Campaign = SC2Campaign.GLOBAL) -> None:
         self.campaign = campaign
         self.connect_to = connect_to
 
