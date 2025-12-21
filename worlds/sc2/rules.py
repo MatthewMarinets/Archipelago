@@ -2389,60 +2389,49 @@ class SC2Logic:
             # Insufficient: Wild Mutation, Assimilation Aura
         )
 
+    def zerg_enemy_within_advanced_tactics_requirement(self, state: CollectionState) -> bool:
+        return (
+            state.has(item_names.INFESTOR, self.player)
+            or (self.morphling_enabled
+                and state.has_any(item_groups.ENEMY_WITHIN_ZERG_MORPHLING_UNITS, self.player)
+            )
+        )
+
     def zerg_pass_vents(self, state: CollectionState) -> bool:
         return (
             self.grant_story_tech == GrantStoryTech.option_grant
-            or state.has_any({item_names.ZERGLING, item_names.HYDRALISK, item_names.ROACH}, self.player)
-            or (self.advanced_tactics and state.has(item_names.INFESTOR, self.player))
+            or state.has_any(item_groups.ENEMY_WITHIN_ZERG_STANDARD_UNITS, self.player)
+            or (self.advanced_tactics
+                and self.zerg_enemy_within_advanced_tactics_requirement(state)
+            )
+        )
+    
+    def zerg_enemy_within_victory_requirement(self, state: CollectionState) -> bool:
+        return (
+            self.grant_story_tech == GrantStoryTech.option_grant
+            or state.has_any(item_groups.ENEMY_WITHIN_ZERG_STANDARD_UNITS[1:], self.player)
+            or state.has_all((item_names.ZERGLING, item_names.ZERGLING_RAPTOR_STRAIN), self.player)
+            or (self.advanced_tactics
+                and self.zerg_enemy_within_advanced_tactics_requirement(state)
+            )
         )
 
     def terran_enemy_within_requirement(self, state: CollectionState) -> bool:
         return (
             self.grant_story_tech == GrantStoryTech.option_grant
-            or state.has_any({
-                item_names.MARINE, 
-                item_names.MARAUDER, 
-                item_names.REAPER, 
-                item_names.GHOST, 
-                item_names.SPECTRE, 
-                item_names.DOMINION_TROOPER, 
-                item_names.SIEGE_TANK, 
-                item_names.VIKING, 
-                item_names.PREDATOR, 
-                item_names.DIAMONDBACK, 
-                item_names.GOLIATH, 
-                item_names.CYCLONE, 
-                item_names.WARHOUND, 
-            }, self.player)
-            or (self.advanced_tactics and state.has(item_names.VULTURE, self.player))
+            or state.has_any(item_groups.ENEMY_WITHIN_TERRAN_UNITS, self.player)
+            or (self.advanced_tactics
+                and state.has_any(item_groups.ENEMY_WITHIN_TERRAN_ADVANCED_UNITS, self.player)
+            )
         )
     
     def protoss_enemy_within_requirement(self, state: CollectionState) -> bool:
         return (
             self.grant_story_tech == GrantStoryTech.option_grant
-            or state.has_any({
-                item_names.ZEALOT, 
-                item_names.CENTURION, 
-                item_names.STALKER, 
-                item_names.INSTIGATOR, 
-                item_names.SLAYER, 
-                item_names.DRAGOON, 
-                item_names.ADEPT, 
-                item_names.DARK_TEMPLAR, 
-                item_names.AVENGER, 
-                item_names.BLOOD_HUNTER, 
-                item_names.IMMORTAL, 
-                item_names.ANNIHILATOR, 
-                item_names.STALWART, 
-                item_names.VANGUARD, 
-                item_names.REAVER, 
-            }, self.player)
-            or (self.advanced_tactics and state.has_any({
-                item_names.HIGH_TEMPLAR, 
-                item_names.SIGNIFIER,
-                item_names.ASCENDANT,
-                item_names.DISRUPTOR,
-            }, self.player))
+            or state.has_any(item_groups.ENEMY_WITHIN_PROTOSS_STANDARD_UNITS, self.player)
+            or (self.advanced_tactics
+                and state.has_any(item_groups.ENEMY_WITHIN_PROTOSS_ADVANCED_UNITS, self.player)
+            )
         )
      
     def supreme_requirement(self, state: CollectionState) -> bool:
@@ -2551,15 +2540,12 @@ class SC2Logic:
                 self.grant_story_tech == GrantStoryTech.option_grant
                 or not self.kerrigan_unit_available
                 or (
-                    state.has_any(
-                        (
-                            item_names.KERRIGAN_KINETIC_BLAST,
-                            item_names.KERRIGAN_SPAWN_BANELINGS,
-                            item_names.KERRIGAN_LEAPING_STRIKE,
-                            item_names.KERRIGAN_SPAWN_LEVIATHAN,
-                        ),
-                        self.player,
-                    )
+                    state.has_any((
+                        item_names.KERRIGAN_KINETIC_BLAST,
+                        item_names.KERRIGAN_SPAWN_BANELINGS,
+                        item_names.KERRIGAN_LEAPING_STRIKE,
+                        item_names.KERRIGAN_SPAWN_LEVIATHAN,
+                    ), self.player)
                     and self.basic_kerrigan(state)
                 )
             )
@@ -2569,20 +2555,7 @@ class SC2Logic:
         return (
             self.grant_story_tech == GrantStoryTech.option_grant
             or self.advanced_tactics
-            or (
-                state.has_any((
-                    item_names.IMMORTAL,
-                    item_names.ANNIHILATOR,
-                    item_names.VANGUARD,
-                    item_names.COLOSSUS,
-                    item_names.WRATHWALKER,
-                    item_names.REAVER,
-                    item_names.DARK_TEMPLAR,
-                    item_names.HIGH_TEMPLAR,
-                    item_names.ENERGIZER,
-                    item_names.SENTRY,
-                ), self.player)
-            )
+            or state.has_any(item_groups.TEMPLARS_RETURN_PROTOSS_UNITS, self.player)
         )
 
     def templars_return_phase_3_reach_colossus_requirement(self, state: CollectionState) -> bool:

@@ -1031,3 +1031,74 @@ item_name_groups[ItemGroupNames.LEGACY_ITEMS] = legacy_items = [
 item_name_groups[ItemGroupNames.KEYS] = keys = [
     item_name for item_name in key_item_table.keys()
 ]
+
+# ####################### #
+#   Internal-use groups   #
+# ####################### # 
+ENEMY_WITHIN_ZERG_STANDARD_UNITS = (
+    item_names.ZERGLING, item_names.ROACH, item_names.HYDRALISK,
+)
+ENEMY_WITHIN_ZERG_BASELINE_UNITS = ENEMY_WITHIN_ZERG_STANDARD_UNITS + (item_names.INFESTOR,)
+ENEMY_WITHIN_ZERG_MORPHLING_UNITS = (
+    item_names.BANELING,
+    item_names.IMPALER,
+    item_names.LURKER,
+    item_names.PRIMAL_IGNITER,
+    item_names.RAVAGER,
+)
+ENEMY_WITHIN_TERRAN_STANDARD_UNITS = (
+    item_names.MARINE,
+    item_names.MARAUDER,
+    item_names.REAPER,
+    item_names.GHOST,
+    item_names.SPECTRE,
+    item_names.DOMINION_TROOPER,
+    item_names.SIEGE_TANK,
+    item_names.VIKING,
+    item_names.PREDATOR,
+    item_names.DIAMONDBACK,
+    item_names.GOLIATH,
+    item_names.CYCLONE,
+    item_names.WARHOUND,
+)
+ENEMY_WITHIN_TERRAN_ADVANCED_UNITS = (
+    item_names.VULTURE,
+)
+ENEMY_WITHIN_TERRAN_UNITS = ENEMY_WITHIN_TERRAN_STANDARD_UNITS + ENEMY_WITHIN_TERRAN_ADVANCED_UNITS
+ENEMY_WITHIN_PROTOSS_STANDARD_UNITS = (
+    item_names.ZEALOT,
+    item_names.CENTURION,
+    item_names.STALKER,
+    item_names.INSTIGATOR,
+    item_names.SLAYER,
+    item_names.DRAGOON,
+    item_names.ADEPT,
+    item_names.DARK_TEMPLAR,
+    item_names.AVENGER,
+    item_names.BLOOD_HUNTER,
+    item_names.IMMORTAL,
+    item_names.ANNIHILATOR,
+    item_names.STALWART,
+    item_names.VANGUARD,
+    item_names.REAVER,
+)
+ENEMY_WITHIN_PROTOSS_ADVANCED_UNITS = (
+    item_names.HIGH_TEMPLAR,
+    item_names.SIGNIFIER,
+    item_names.ASCENDANT,
+    item_names.DISRUPTOR,
+)
+ENEMY_WITHIN_PROTOSS_UNITS = ENEMY_WITHIN_PROTOSS_STANDARD_UNITS + ENEMY_WITHIN_PROTOSS_STANDARD_UNITS
+
+TEMPLARS_RETURN_PROTOSS_UNITS = (
+    item_names.IMMORTAL,
+    item_names.ANNIHILATOR,
+    item_names.VANGUARD,
+    item_names.COLOSSUS,
+    item_names.WRATHWALKER,
+    item_names.REAVER,
+    item_names.DARK_TEMPLAR,
+    item_names.HIGH_TEMPLAR,
+    item_names.ENERGIZER,
+    item_names.SENTRY,
+)
