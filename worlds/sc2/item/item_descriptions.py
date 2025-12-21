@@ -850,7 +850,7 @@ item_descriptions = {
     item_names.INFESTED_DUSK_WINGS: "Mercenary infested Dusk Wings that may be called in from the Predator Nest.",
     item_names.HUNTER_KILLERS: "Elite Hydralisk strain. Summoned at the Predator Nest.",
     item_names.DEVOURING_ONES: "Elite Zergling strain. Summoned at the Predator Nest.",
-    item_names.TORRASQUE_MERC: "Elite Ultralisk strain. Summoned at the Predator Nest.",
+    item_names.WISE_OLD_TORRASQUE: "Elite Ultralisk strain. Summoned at the Predator Nest.",
     item_names.HUNTERLING: "Elite strain. Can jump up and down cliffs and stun enemies by jumping on them. Summoned at the Predator Nest.",
     item_names.YGGDRASIL: "Elite Overlord strain that has the ability to transport buildings and ground units. Summoned at the Predator Nest.",
     item_names.CAUSTIC_HORRORS: "Elite Roach Strain that has the ability to attack air units. Summoned at the Predator Nest.",

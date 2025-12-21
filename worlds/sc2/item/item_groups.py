@@ -659,7 +659,7 @@ item_name_groups[ItemGroupNames.ZERG_SC1_UNITS] = [
     item_names.GUARDIAN,
     item_names.DEVOURING_ONES,
     item_names.HUNTER_KILLERS,
-    item_names.TORRASQUE_MERC,
+    item_names.WISE_OLD_TORRASQUE,
 ]
 item_name_groups[ItemGroupNames.ZERG_LADDER_UNITS] = [
     item_names.ZERGLING,

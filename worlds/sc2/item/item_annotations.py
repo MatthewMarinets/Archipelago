@@ -110,7 +110,7 @@ ITEM_NAME_ANNOTATIONS = {
     item_names.INFESTED_DUSK_WINGS:       "(Zerg Mercenary)",
     item_names.DEVOURING_ONES:            "(Zerg Mercenary)",
     item_names.HUNTER_KILLERS:            "(Zerg Mercenary)",
-    item_names.TORRASQUE_MERC:            "(Zerg Mercenary)",
+    item_names.WISE_OLD_TORRASQUE:        "(Zerg Mercenary)",
     item_names.HUNTERLING:                "(Zerg Mercenary)",
     item_names.YGGDRASIL:                 "(Zerg Mercenary)",
     item_names.CAUSTIC_HORRORS:           "(Zerg Mercenary)",
