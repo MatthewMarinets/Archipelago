@@ -821,7 +821,7 @@ class SC2Logic:
                 ),
                 self.player,
             )
-            or state.has_all((item_names.SWARM_QUEEN_DEEP_TUNNEL, item_names.OVERLORD_OVERSEER_ASPECT), self.player)  # Deep tunnel to a creep tumor
+            or state.has_all((item_names.SWARM_QUEEN_DEEP_TUNNEL, item_names.OVERSEER), self.player)  # Deep tunnel to a creep tumor
         )
 
     def zerg_has_infested_scv(self, state: CollectionState) -> bool:
@@ -934,47 +934,47 @@ class SC2Logic:
         )
 
     def morph_baneling(self, state: CollectionState) -> bool:
-        return (state.has(item_names.ZERGLING, self.player) or self.morphling_enabled) and state.has(item_names.ZERGLING_BANELING_ASPECT, self.player)
+        return (state.has(item_names.ZERGLING, self.player) or self.morphling_enabled) and state.has(item_names.BANELING, self.player)
 
     def morph_ravager(self, state: CollectionState) -> bool:
-        return (state.has(item_names.ROACH, self.player) or self.morphling_enabled) and state.has(item_names.ROACH_RAVAGER_ASPECT, self.player)
+        return (state.has(item_names.ROACH, self.player) or self.morphling_enabled) and state.has(item_names.RAVAGER, self.player)
 
     def morph_brood_lord(self, state: CollectionState) -> bool:
         return (state.has_any({item_names.MUTALISK, item_names.CORRUPTOR}, self.player) or self.morphling_enabled) and state.has(
-            item_names.MUTALISK_CORRUPTOR_BROOD_LORD_ASPECT, self.player
+            item_names.BROOD_LORD, self.player
         )
 
     def morph_guardian(self, state: CollectionState) -> bool:
         return (state.has_any({item_names.MUTALISK, item_names.CORRUPTOR}, self.player) or self.morphling_enabled) and state.has(
-            item_names.MUTALISK_CORRUPTOR_GUARDIAN_ASPECT, self.player
+            item_names.GUARDIAN, self.player
         )
 
     def morph_viper(self, state: CollectionState) -> bool:
         return (state.has_any({item_names.MUTALISK, item_names.CORRUPTOR}, self.player) or self.morphling_enabled) and state.has(
-            item_names.MUTALISK_CORRUPTOR_VIPER_ASPECT, self.player
+            item_names.VIPER, self.player
         )
 
     def morph_devourer(self, state: CollectionState) -> bool:
         return (state.has_any({item_names.MUTALISK, item_names.CORRUPTOR}, self.player) or self.morphling_enabled) and state.has(
-            item_names.MUTALISK_CORRUPTOR_DEVOURER_ASPECT, self.player
+            item_names.DEVOURER, self.player
         )
 
     def morph_impaler(self, state: CollectionState) -> bool:
         return (state.has(item_names.HYDRALISK, self.player) or self.morphling_enabled) and state.has(
-            item_names.HYDRALISK_IMPALER_ASPECT, self.player
+            item_names.IMPALER, self.player
         )
 
     def morph_lurker(self, state: CollectionState) -> bool:
-        return (state.has(item_names.HYDRALISK, self.player) or self.morphling_enabled) and state.has(item_names.HYDRALISK_LURKER_ASPECT, self.player)
+        return (state.has(item_names.HYDRALISK, self.player) or self.morphling_enabled) and state.has(item_names.LURKER, self.player)
 
     def morph_impaler_or_lurker(self, state: CollectionState) -> bool:
         return self.morph_impaler(state) or self.morph_lurker(state)
 
     def morph_igniter(self, state: CollectionState) -> bool:
-        return (state.has(item_names.ROACH, self.player) or self.morphling_enabled) and state.has(item_names.ROACH_PRIMAL_IGNITER_ASPECT, self.player)
+        return (state.has(item_names.ROACH, self.player) or self.morphling_enabled) and state.has(item_names.PRIMAL_IGNITER, self.player)
 
     def morph_tyrannozor(self, state: CollectionState) -> bool:
-        return state.has(item_names.ULTRALISK_TYRANNOZOR_ASPECT, self.player) and (
+        return state.has(item_names.TYRANNOZOR, self.player) and (
             state.has(item_names.ULTRALISK, self.player) or self.morphling_enabled
         )
 
@@ -1029,7 +1029,7 @@ class SC2Logic:
 
     def spread_creep(self, state: CollectionState, free_creep_tumor=True) -> bool:
         return (self.advanced_tactics and free_creep_tumor) or state.has_any(
-            {item_names.SWARM_QUEEN, item_names.OVERLORD_OVERSEER_ASPECT}, self.player
+            {item_names.SWARM_QUEEN, item_names.OVERSEER}, self.player
         )
 
     def zerg_mineral_dump(self, state: CollectionState) -> bool:
@@ -2453,7 +2453,7 @@ class SC2Logic:
                         item_names.KERRIGAN_LEAPING_STRIKE,
                         item_names.OVERLORD_VENTRAL_SACS,
                         item_names.YGGDRASIL,
-                        item_names.MUTALISK_CORRUPTOR_VIPER_ASPECT,
+                        item_names.VIPER,
                         item_names.NYDUS_WORM,
                         item_names.BULLFROG,
                     ), self.player)
@@ -3589,7 +3589,7 @@ class SC2Logic:
         def _has_zerg_units(state: CollectionState) -> bool:
             num_units = (
                 state.count_from_list_unique(
-                    item_groups.zerg_nonmorph_units + item_groups.zerg_buildings + [item_names.OVERLORD_OVERSEER_ASPECT],
+                    item_groups.zerg_nonmorph_units + item_groups.zerg_buildings + [item_names.OVERSEER],
                     self.player
                 )
                 + self.morph_baneling(state)

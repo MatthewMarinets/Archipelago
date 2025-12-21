@@ -536,27 +536,27 @@ item_name_groups[ItemGroupNames.ZERG_UNITS] = zerg_units = zerg_nonmorph_units +
 # For W/A upgrades
 zerg_ground_units = [
     item_names.ZERGLING, item_names.SWARM_QUEEN, item_names.ROACH, item_names.HYDRALISK, item_names.ABERRATION,
-    item_names.SWARM_HOST, item_names.INFESTOR, item_names.ULTRALISK, item_names.ZERGLING_BANELING_ASPECT,
-    item_names.HYDRALISK_LURKER_ASPECT, item_names.HYDRALISK_IMPALER_ASPECT, item_names.ULTRALISK_TYRANNOZOR_ASPECT,
-    item_names.ROACH_RAVAGER_ASPECT, item_names.DEFILER, item_names.ROACH_PRIMAL_IGNITER_ASPECT,
+    item_names.SWARM_HOST, item_names.INFESTOR, item_names.ULTRALISK, item_names.BANELING,
+    item_names.LURKER, item_names.IMPALER, item_names.TYRANNOZOR,
+    item_names.RAVAGER, item_names.DEFILER, item_names.PRIMAL_IGNITER,
     item_names.PYGALISK,
     item_names.INFESTED_MARINE, item_names.INFESTED_BUNKER, item_names.INFESTED_DIAMONDBACK,
     item_names.INFESTED_SIEGE_TANK,
 ]
 zerg_melee_wa = [
-    item_names.ZERGLING, item_names.ABERRATION, item_names.ULTRALISK, item_names.ZERGLING_BANELING_ASPECT,
-    item_names.ULTRALISK_TYRANNOZOR_ASPECT, item_names.INFESTED_BUNKER, item_names.PYGALISK,
+    item_names.ZERGLING, item_names.ABERRATION, item_names.ULTRALISK, item_names.BANELING,
+    item_names.TYRANNOZOR, item_names.INFESTED_BUNKER, item_names.PYGALISK,
 ]
 zerg_ranged_wa = [
     item_names.SWARM_QUEEN, item_names.ROACH, item_names.HYDRALISK, item_names.SWARM_HOST,
-    item_names.HYDRALISK_LURKER_ASPECT, item_names.HYDRALISK_IMPALER_ASPECT, item_names.ULTRALISK_TYRANNOZOR_ASPECT,
-    item_names.ROACH_RAVAGER_ASPECT, item_names.ROACH_PRIMAL_IGNITER_ASPECT, item_names.INFESTED_MARINE,
+    item_names.LURKER, item_names.IMPALER, item_names.TYRANNOZOR,
+    item_names.RAVAGER, item_names.PRIMAL_IGNITER, item_names.INFESTED_MARINE,
     item_names.INFESTED_BUNKER, item_names.INFESTED_DIAMONDBACK, item_names.INFESTED_SIEGE_TANK,
 ]
 zerg_air_units = [
-    item_names.MUTALISK, item_names.MUTALISK_CORRUPTOR_VIPER_ASPECT, item_names.MUTALISK_CORRUPTOR_BROOD_LORD_ASPECT,
-    item_names.CORRUPTOR, item_names.BROOD_QUEEN, item_names.SCOURGE, item_names.MUTALISK_CORRUPTOR_GUARDIAN_ASPECT,
-    item_names.MUTALISK_CORRUPTOR_DEVOURER_ASPECT, item_names.INFESTED_BANSHEE, item_names.INFESTED_LIBERATOR,
+    item_names.MUTALISK, item_names.VIPER, item_names.BROOD_LORD,
+    item_names.CORRUPTOR, item_names.BROOD_QUEEN, item_names.SCOURGE, item_names.GUARDIAN,
+    item_names.DEVOURER, item_names.INFESTED_BANSHEE, item_names.INFESTED_LIBERATOR,
 ]
 item_name_groups[ItemGroupNames.ZERG_GENERIC_UPGRADES] = zerg_generic_upgrades = [
     item_name for item_name, item_data in item_tables.item_table.items()
@@ -566,22 +566,22 @@ item_name_groups[ItemGroupNames.HOTS_UNITS] = hots_units = [
     item_names.ZERGLING, item_names.SWARM_QUEEN, item_names.ROACH, item_names.HYDRALISK,
     item_names.ABERRATION, item_names.SWARM_HOST, item_names.MUTALISK,
     item_names.INFESTOR, item_names.ULTRALISK,
-    item_names.ZERGLING_BANELING_ASPECT,
-    item_names.HYDRALISK_LURKER_ASPECT,
-    item_names.HYDRALISK_IMPALER_ASPECT,
-    item_names.MUTALISK_CORRUPTOR_VIPER_ASPECT,
-    item_names.MUTALISK_CORRUPTOR_BROOD_LORD_ASPECT,
+    item_names.BANELING,
+    item_names.LURKER,
+    item_names.IMPALER,
+    item_names.VIPER,
+    item_names.BROOD_LORD,
 ]
 item_name_groups[ItemGroupNames.HOTS_BUILDINGS] = hots_buildings = [
     item_names.SPINE_CRAWLER,
     item_names.SPORE_CRAWLER,
 ]
 item_name_groups[ItemGroupNames.HOTS_MORPHS] = hots_morphs = [
-    item_names.ZERGLING_BANELING_ASPECT,
-    item_names.HYDRALISK_IMPALER_ASPECT,
-    item_names.HYDRALISK_LURKER_ASPECT,
-    item_names.MUTALISK_CORRUPTOR_VIPER_ASPECT,
-    item_names.MUTALISK_CORRUPTOR_BROOD_LORD_ASPECT,
+    item_names.BANELING,
+    item_names.IMPALER,
+    item_names.LURKER,
+    item_names.VIPER,
+    item_names.BROOD_LORD,
 ]
 item_name_groups[ItemGroupNames.ZERG_MERCENARIES] = zerg_mercenaries = [
     item_name for item_name, item_data in item_tables.item_table.items() if item_data.type == item_tables.ZergItemType.Mercenary
@@ -644,7 +644,7 @@ item_name_groups[ItemGroupNames.OVERLORD_UPGRADES] = [
     item_names.OVERLORD_GENERATE_CREEP,
     item_names.OVERLORD_PNEUMATIZED_CARAPACE,
     item_names.OVERLORD_IMPROVED_OVERLORDS,
-    item_names.OVERLORD_OVERSEER_ASPECT,
+    item_names.OVERSEER,
 ]
 item_name_groups[ItemGroupNames.ZERG_SC1_UNITS] = [
     item_names.ZERGLING,
@@ -654,9 +654,9 @@ item_name_groups[ItemGroupNames.ZERG_SC1_UNITS] = [
     item_names.BROOD_QUEEN,
     item_names.DEFILER,
     item_names.ULTRALISK,
-    item_names.HYDRALISK_LURKER_ASPECT,
-    item_names.MUTALISK_CORRUPTOR_DEVOURER_ASPECT,
-    item_names.MUTALISK_CORRUPTOR_GUARDIAN_ASPECT,
+    item_names.LURKER,
+    item_names.DEVOURER,
+    item_names.GUARDIAN,
     item_names.DEVOURING_ONES,
     item_names.HUNTER_KILLERS,
     item_names.TORRASQUE_MERC,
@@ -664,16 +664,16 @@ item_name_groups[ItemGroupNames.ZERG_SC1_UNITS] = [
 item_name_groups[ItemGroupNames.ZERG_LADDER_UNITS] = [
     item_names.ZERGLING,
     item_names.SWARM_QUEEN,  # Replace: Hive Queen
-    item_names.ZERGLING_BANELING_ASPECT,
+    item_names.BANELING,
     item_names.ROACH,
-    item_names.ROACH_RAVAGER_ASPECT,
-    item_names.OVERLORD_OVERSEER_ASPECT,
+    item_names.RAVAGER,
+    item_names.OVERSEER,
     item_names.HYDRALISK,
-    item_names.HYDRALISK_LURKER_ASPECT,
+    item_names.LURKER,
     item_names.MUTALISK,
     item_names.CORRUPTOR,
-    item_names.MUTALISK_CORRUPTOR_VIPER_ASPECT,
-    item_names.MUTALISK_CORRUPTOR_BROOD_LORD_ASPECT,
+    item_names.VIPER,
+    item_names.BROOD_LORD,
     item_names.INFESTOR,
     item_names.SWARM_HOST,
     item_names.ULTRALISK,
