@@ -568,7 +568,6 @@ item_name_groups[ItemGroupNames.COOP_HAN_AND_HORNER_UNITS] = [
     item_names.WIDOW_MINE,
     item_names.HELLION,
     # (Hellbat)
-    item_names.HELLION,
     # Note: Co-op Horner has elite variants of these units
     item_names.WRAITH,
     item_names.VIKING,
