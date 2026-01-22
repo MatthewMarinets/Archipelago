@@ -1,7 +1,8 @@
 from dataclasses import fields
 import logging
 
-from typing import *
+from collections import Counter
+from typing import Any, ClassVar, Callable, Mapping
 from math import floor, ceil
 from BaseClasses import Item, MultiWorld, Location, Tutorial, ItemClassification, CollectionState
 from Options import Accessibility, OptionError
@@ -101,14 +102,14 @@ class SC2World(World):
 
     item_name_groups = item_groups.item_name_groups  # type: ignore
     location_name_groups = location_groups.get_location_groups()
-    locked_locations: List[str]
+    locked_locations: list[str]
     """Locations locked to contain specific items, such as victory events or forced resources"""
-    location_cache: List[Location]
-    final_missions: List[int]
+    location_cache: list[Location]
+    final_missions: list[int]
     required_client_version = 0, 6, 4
     custom_mission_order: SC2MissionOrder
-    logic: Optional['SC2Logic']
-    filler_items_distribution: Dict[str, int]
+    logic: 'SC2Logic | None'
+    filler_items_distribution: dict[str, int]
 
     def __init__(self, multiworld: MultiWorld, player: int):
         super(SC2World, self).__init__(multiworld, player)
@@ -177,7 +178,7 @@ class SC2World(World):
         setup_events(self.player, self.locked_locations, self.location_cache)
         set_up_filler_items_distribution(self)
 
-        item_list: List[FilterItem] = create_and_flag_explicit_item_locks_and_excludes(self)
+        item_list: list[FilterItem] = create_and_flag_explicit_item_locks_and_excludes(self)
         flag_excludes_by_faction_presence(self, item_list)
         flag_mission_based_item_excludes(self, item_list)
         flag_allowed_orphan_items(self, item_list)
@@ -187,13 +188,13 @@ class SC2World(World):
         flag_war_council_items(self, item_list)
         flag_and_add_resource_locations(self, item_list)
         flag_mission_order_required_items(self, item_list)
-        pruned_items: List[StarcraftItem] = prune_item_pool(self, item_list)
+        pruned_items: list[StarcraftItem] = prune_item_pool(self, item_list)
 
         start_inventory = [item for item in pruned_items if ItemFilterFlags.StartInventory in item.filter_flags]
         pool = [item for item in pruned_items if ItemFilterFlags.StartInventory not in item.filter_flags]
 
         # Tell the logic which unit classes are used for required W/A upgrades
-        used_item_names: Set[str] = {item.name for item in pruned_items}
+        used_item_names: set[str] = {item.name for item in pruned_items}
         used_item_names = used_item_names.union(item.name for item in self.multiworld.itempool if item.player == self.player)
         assert self.logic is not None
         if used_item_names.isdisjoint(item_groups.barracks_wa_group):
@@ -236,7 +237,7 @@ class SC2World(World):
 
     def fill_slot_data(self) -> Mapping[str, Any]:
         assert self.logic
-        slot_data: Dict[str, Any] = {}
+        slot_data: dict[str, Any] = {}
         for option_name in [field.name for field in fields(Starcraft2Options)]:
             option = get_option_value(self, option_name)
             if type(option) in {str, int}:
@@ -256,7 +257,7 @@ class SC2World(World):
             slot_data["kerrigan_presence"] = KerriganPresence.option_not_present
 
         if self.options.mission_order_scouting != MissionOrderScouting.option_none:
-            mission_item_classification: Dict[str, int] = {}
+            mission_item_classification: dict[str, int] = {}
             for location in self.multiworld.get_locations(self.player):
                 # Event do not hold items
                 if not location.is_event:
@@ -312,7 +313,7 @@ class SC2World(World):
             self._fill_needed_items(lambda: self.multiworld.get_all_state(False), [item_names.KERRIGAN_LEVELS_1], 70)
 
 
-    def _fill_needed_items(self, all_state_getter: Callable[[],CollectionState], items_to_use: List[str], max_attempts: int) -> None:
+    def _fill_needed_items(self, all_state_getter: Callable[[],CollectionState], items_to_use: list[str], max_attempts: int) -> None:
         """
         Helper for pre-fill, seeks if the world is actually solvable and inserts items to start inventory if necessary.
         :param all_state_getter:
@@ -338,7 +339,7 @@ class SC2World(World):
                 return
 
 
-    def extend_hint_information(self, hint_data: Dict[int, Dict[int, str]]) -> None:
+    def extend_hint_information(self, hint_data: dict[int, dict[int, str]]) -> None:
         """
         Generate information to hint where each mission is actually located in the mission order
         :param hint_data:
@@ -389,7 +390,7 @@ def _get_column_display(index: int, single_row_layout: bool) -> str:
         return f(index + 1)
 
 
-def setup_events(player: int, locked_locations: List[str], location_cache: List[Location]) -> None:
+def setup_events(player: int, locked_locations: list[str], location_cache: list[Location]) -> None:
     for location in location_cache:
         if location.address is None:
             item = Item(location.name, ItemClassification.progression, None, player)
@@ -399,7 +400,7 @@ def setup_events(player: int, locked_locations: List[str], location_cache: List[
             location.place_locked_item(item)
 
 
-def create_and_flag_explicit_item_locks_and_excludes(world: SC2World) -> List[FilterItem]:
+def create_and_flag_explicit_item_locks_and_excludes(world: SC2World) -> list[FilterItem]:
     """
     Handles `excluded_items`, `locked_items`, and `start_inventory`
     Returns a list of all possible non-filler items that can be added, with an accompanying flags bitfield.
@@ -445,7 +446,7 @@ def create_and_flag_explicit_item_locks_and_excludes(world: SC2World) -> List[Fi
                 auto_excludes[item_name] = item_data.quantity
 
 
-    result: List[FilterItem] = []
+    result: list[FilterItem] = []
     for item_name, item_data in item_tables.item_table.items():
         max_count = item_data.quantity
         auto_excluded_count = auto_excludes.get(item_name, 0)
@@ -500,7 +501,7 @@ def create_and_flag_explicit_item_locks_and_excludes(world: SC2World) -> List[Fi
     return result
 
 
-def flag_excludes_by_faction_presence(world: SC2World, item_list: List[FilterItem]) -> None:
+def flag_excludes_by_faction_presence(world: SC2World, item_list: list[FilterItem]) -> None:
     """Excludes items based on if their faction has a mission present where they can be used"""
     missions = get_all_missions(world.custom_mission_order)
     if world.options.take_over_ai_allies.value:
@@ -630,7 +631,7 @@ def flag_excludes_by_faction_presence(world: SC2World, item_list: List[FilterIte
             item.flags |= ItemFilterFlags.FilterExcluded
 
 
-def flag_mission_based_item_excludes(world: SC2World, item_list: List[FilterItem]) -> None:
+def flag_mission_based_item_excludes(world: SC2World, item_list: list[FilterItem]) -> None:
     """
     Excludes items based on mission / campaign presence: Nova Gear, Kerrigan abilities, SOA
     """
@@ -777,7 +778,7 @@ def flag_mission_based_item_excludes(world: SC2World, item_list: List[FilterItem
     return
 
 
-def flag_allowed_orphan_items(world: SC2World, item_list: List[FilterItem]) -> None:
+def flag_allowed_orphan_items(world: SC2World, item_list: list[FilterItem]) -> None:
     """Adds the `Allowed_Orphan` flag to items that shouldn't be filtered with their parents, like combat shield"""
     missions = get_all_missions(world.custom_mission_order)
     if SC2Mission.PIERCING_OF_THE_SHROUD in missions:
@@ -804,7 +805,7 @@ def flag_allowed_orphan_items(world: SC2World, item_list: List[FilterItem]) -> N
                 item.flags |= ItemFilterFlags.AllowedOrphan
 
 
-def flag_start_inventory(world: SC2World, item_list: List[FilterItem]) -> None:
+def flag_start_inventory(world: SC2World, item_list: list[FilterItem]) -> None:
     """Adds items to start_inventory based on first mission logic and options like `starter_unit` and `start_primary_abilities`"""
     potential_starters = world.custom_mission_order.get_starting_missions()
     starter_mission_names = [mission.mission_name for mission in potential_starters]
@@ -827,7 +828,7 @@ def flag_start_inventory(world: SC2World, item_list: List[FilterItem]) -> None:
     flag_start_abilities(world, item_list)
 
 
-def flag_start_unit(world: SC2World, item_list: List[FilterItem], starter_unit: int) -> None:
+def flag_start_unit(world: SC2World, item_list: list[FilterItem], starter_unit: int) -> None:
     first_mission = get_random_first_mission(world, world.custom_mission_order)
     first_race = first_mission.race
 
@@ -911,7 +912,7 @@ def flag_start_unit(world: SC2World, item_list: List[FilterItem], starter_unit: 
             starter_weapon.flags |= ItemFilterFlags.StartInventory
 
 
-def flag_start_abilities(world: SC2World, item_list: List[FilterItem]) -> None:
+def flag_start_abilities(world: SC2World, item_list: list[FilterItem]) -> None:
     starter_abilities = world.options.start_primary_abilities
     if not starter_abilities:
         return
@@ -943,12 +944,12 @@ def flag_start_abilities(world: SC2World, item_list: List[FilterItem]) -> None:
             ability.flags |= ItemFilterFlags.StartInventory
 
 
-def flag_unused_upgrade_types(world: SC2World, item_list: List[FilterItem]) -> None:
+def flag_unused_upgrade_types(world: SC2World, item_list: list[FilterItem]) -> None:
     """Excludes +armour/attack upgrades based on generic upgrade strategy.
     Caps upgrade items based on `max_upgrade_level`."""
     include_upgrades = world.options.generic_upgrade_missions == 0
     upgrade_items = world.options.generic_upgrade_items.value
-    upgrade_included_counts: Dict[str, int] = {}
+    upgrade_included_counts: dict[str, int] = {}
     for item in item_list:
         if item.data.type in item_tables.upgrade_item_types:
             if not include_upgrades or (item.name not in upgrade_included_names[upgrade_items]):
@@ -963,7 +964,7 @@ def flag_unused_upgrade_types(world: SC2World, item_list: List[FilterItem]) -> N
                 elif ItemFilterFlags.UserExcluded not in item.flags:
                     upgrade_included_counts[item.name] = included + 1
 
-def flag_unreleased_items(item_list: List[FilterItem]) -> None:
+def flag_unreleased_items(item_list: list[FilterItem]) -> None:
     """Remove all unreleased items unless they're explicitly locked"""
     for item in item_list:
         if (item.name in unreleased_items
@@ -971,7 +972,7 @@ def flag_unreleased_items(item_list: List[FilterItem]) -> None:
             item.flags |= ItemFilterFlags.Removed
 
 
-def flag_war_council_items(world: SC2World, item_list: List[FilterItem]) -> None:
+def flag_war_council_items(world: SC2World, item_list: list[FilterItem]) -> None:
     """Excludes / start-inventories items based on `nerf_unit_baselines` option.
     Will skip items that are excluded by other sources."""
     if world.options.war_council_nerfs:
@@ -988,7 +989,7 @@ def flag_war_council_items(world: SC2World, item_list: List[FilterItem]) -> None
             item.flags |= ItemFilterFlags.StartInventory
 
 
-def flag_and_add_resource_locations(world: SC2World, item_list: List[FilterItem]) -> None:
+def flag_and_add_resource_locations(world: SC2World, item_list: list[FilterItem]) -> None:
     """
     Filters the locations in the world using a trash or Nothing item
     :param world: The sc2 world object
@@ -1016,7 +1017,7 @@ def flag_and_add_resource_locations(world: SC2World, item_list: List[FilterItem]
                 world.locked_locations.append(location.name)
 
 
-def flag_mission_order_required_items(world: SC2World, item_list: List[FilterItem]) -> None:
+def flag_mission_order_required_items(world: SC2World, item_list: list[FilterItem]) -> None:
     """Marks items that are necessary for item rules in the mission order and forces them to be progression."""
     locks_required = world.custom_mission_order.get_items_to_lock()
     locks_done = {item: 0 for item in locks_required}
@@ -1027,7 +1028,7 @@ def flag_mission_order_required_items(world: SC2World, item_list: List[FilterIte
             locks_done[item.name] += 1
 
 
-def prune_item_pool(world: SC2World, item_list: List[FilterItem]) -> List[StarcraftItem]:
+def prune_item_pool(world: SC2World, item_list: list[FilterItem]) -> list[StarcraftItem]:
     """Prunes the item pool size to be less than the number of available locations"""
 
     item_list = [
@@ -1046,7 +1047,7 @@ def prune_item_pool(world: SC2World, item_list: List[FilterItem]) -> List[Starcr
         last_num_items = num_items
         num_items = len(item_list)
 
-    pool: List[StarcraftItem] = []
+    pool: list[StarcraftItem] = []
     for item in item_list:
         ap_item = create_item_with_correct_settings(world.player, item.name, item.flags)
         if ItemFilterFlags.ForceProgression in item.flags:
@@ -1058,14 +1059,14 @@ def prune_item_pool(world: SC2World, item_list: List[FilterItem]) -> List[Starcr
     return filtered_pool
 
 
-def item_list_contains_parent(world: SC2World, item_data: ItemData, item_name_list: List[str]) -> bool:
+def item_list_contains_parent(world: SC2World, item_data: ItemData, item_name_list: list[str]) -> bool:
     if item_data.parent is None:
         # The item has no associated parent, the item is valid
         return True
     return item_parents.parent_present[item_data.parent](item_name_list, world.options)
 
 
-def pad_item_pool_with_filler(world: SC2World, num_items: int, pool: List[StarcraftItem]):
+def pad_item_pool_with_filler(world: SC2World, num_items: int, pool: list[StarcraftItem]):
     for _ in range(num_items):
         item = create_item_with_correct_settings(world.player, world.get_filler_item_name())
         pool.append(item)
@@ -1118,7 +1119,7 @@ def get_random_first_mission(world: SC2World, mission_order: SC2MissionOrder) ->
     return world.random.choice(first_mission_candidates)
 
 
-def get_all_missions(mission_order: SC2MissionOrder) -> List[SC2Mission]:
+def get_all_missions(mission_order: SC2MissionOrder) -> list[SC2Mission]:
     return mission_order.get_used_missions()
 
 
@@ -1132,7 +1133,7 @@ def create_item_with_correct_settings(player: int, name: str, filter_flags: Item
     return item
 
 
-def fill_pool_with_kerrigan_levels(world: SC2World, item_pool: List[StarcraftItem]):
+def fill_pool_with_kerrigan_levels(world: SC2World, item_pool: list[StarcraftItem]):
     total_levels = world.options.kerrigan_level_item_sum.value
     missions = get_all_missions(world.custom_mission_order)
     kerrigan_missions = [mission for mission in missions if MissionFlag.Kerrigan in mission.flags]
@@ -1175,7 +1176,7 @@ def fill_pool_with_kerrigan_levels(world: SC2World, item_pool: List[StarcraftIte
         add_kerrigan_level_items(size, round_func(float(total_levels) / size))
 
 
-def push_precollected_items_to_multiworld(world: SC2World, item_list: List[StarcraftItem]) -> None:
+def push_precollected_items_to_multiworld(world: SC2World, item_list: list[StarcraftItem]) -> None:
     # Clear the pre-collected items, as AP will try to do this for us,
     # and we want to be able to filer out precollected items in the case of upgrade packages.
     auto_precollected_items = world.multiworld.precollected_items[world.player].copy()
