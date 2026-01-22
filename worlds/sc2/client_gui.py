@@ -344,9 +344,10 @@ class SC2Manager(GameManager):
 
     def mission_text(
         self, ctx: SC2Context, mission_id: int, mission_obj: SC2Mission,
-        layout_id: int, is_layout_exit: bool, layout_name: str, campaign_id: int, is_campaign_exit: bool, campaign_name: str,
-        available_missions: List[int], available_layouts: Dict[int, List[int]], available_campaigns: List[int],
-        unfinished_missions: List[int]
+        layout_id: int, is_layout_exit: bool, layout_name: str,
+        campaign_id: int, is_campaign_exit: bool, campaign_name: str,
+        available_missions: list[int], available_layouts: dict[int, List[int]], available_campaigns: list[int],
+        unfinished_missions: Iterable[int]
     ) -> Tuple[str, str]:
         COLOR_MISSION_IMPORTANT = "6495ED" # blue
         COLOR_MISSION_UNIMPORTANT = "A0BEF4" # lighter blue
@@ -529,7 +530,7 @@ class SC2Manager(GameManager):
         ]
         width_override = None
 
-        hinted_item_ids = Counter()
+        hinted_item_ids: Counter[int] = Counter()
         hints = self.ctx.stored_data.get(f"_read_hints_{self.ctx.team}_{self.ctx.slot}")
         if hints:
             for hint in hints:
@@ -569,7 +570,7 @@ class SC2Manager(GameManager):
     def resolve_items_needed(self, mission_id: int) -> Counter[int]:
         def resolve_rule_to_items(rule: RuleData) -> Counter[int]:
             if isinstance(rule, SubRuleRuleData):
-                all_items = Counter()
+                all_items: Counter[int] = Counter()
                 for sub_rule in rule.sub_rules:
                     # Take max of each item across all sub-rules
                     all_items |= resolve_rule_to_items(sub_rule)

@@ -30,6 +30,7 @@ from .options import (
     NovaPresence, MissionOrder, VanillaItemsOnly, ExcludeOverpoweredItems,
     is_mission_in_soa_presence,
 )
+from . import options
 from .rules import get_basic_units, SC2Logic
 from . import settings
 from .pool_filter import filter_items
@@ -234,6 +235,7 @@ class SC2World(World):
         return self.random.choices(tuple(self.filler_items_distribution), weights=self.filler_items_distribution.values())[0]  # type: ignore
 
     def fill_slot_data(self) -> Mapping[str, Any]:
+        assert self.logic
         slot_data: Dict[str, Any] = {}
         for option_name in [field.name for field in fields(Starcraft2Options)]:
             option = get_option_value(self, option_name)
@@ -322,8 +324,10 @@ class SC2World(World):
             all_state: CollectionState = all_state_getter()
             location_failed = False
             for location in self.location_cache:
-                if not (all_state.can_reach_location(location.name, self.player)
-                        and all_state.can_reach_region(location.parent_region.name, self.player)):
+                if not (
+                    all_state.can_reach_location(location.name, self.player)
+                    and all_state.can_reach_region(location.parent_region.name, self.player)
+                ):
                     location_failed = True
                     break
             if location_failed:
