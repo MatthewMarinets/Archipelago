@@ -61,10 +61,11 @@ from worlds._sc2common.bot.data import Race
 from worlds._sc2common.bot.main import run_game
 from worlds._sc2common.bot.player import Bot
 from .item.item_tables import (
-    lookup_id_to_name, get_full_item_list, ItemData,
+    lookup_id_to_name, ItemData,
     ZergItemType, upgrade_bundles,
     WEAPON_ARMOR_UPGRADE_MAX_LEVEL,
 )
+from .item import item_tables
 from .locations import SC2WOL_LOC_ID_OFFSET, LocationType, LocationFlag, SC2HOTS_LOC_ID_OFFSET, VICTORY_CACHE_OFFSET
 from .mission_tables import (
     lookup_id_to_mission, SC2Campaign, MissionInfo,
@@ -128,7 +129,7 @@ class ConfigurableOptionInfo(NamedTuple):
 
 class ColouredMessage:
     def __init__(self, text: str = '', *, keep_markup: bool = False) -> None:
-        self.parts: list[dict] = []
+        self.parts: list[dict[str, Any]] = []
         if text:
             self(text, keep_markup=keep_markup)
     def __call__(self, text: str, *, keep_markup: bool = False) -> 'ColouredMessage':
@@ -265,7 +266,7 @@ class StarcraftClientProcessor(ClientCommandProcessor):
                 return True
             return False
 
-        items = get_full_item_list()
+        items = item_tables.item_table
         categorized_items: dict[SC2Race, list[int | str]] = {}
         parent_to_child: dict[int | str, list[int]] = {}
         items_received: dict[int, list[NetworkItem]] = {}
@@ -1027,7 +1028,7 @@ class SC2Context(CommonContext):
         if self.sc2_run_task:
             self.sc2_run_task.cancel()
 
-    async def disconnect(self, allow_autoreconnect: bool = False):
+    async def disconnect(self, allow_autoreconnect: bool = False) -> None:
         self.finished_game = False
         await super(SC2Context, self).disconnect(allow_autoreconnect=allow_autoreconnect)
 
@@ -1304,11 +1305,11 @@ class CompatItemHolder(NamedTuple):
     quantity: int = 1
 
 
-async def main(args: Sequence[str] | None):
+async def main(arguments: Sequence[str] | None):
     multiprocessing.freeze_support()
     parser = get_base_parser()
     parser.add_argument('--name', default=None, help="Slot Name to connect as.")
-    args, uri = parser.parse_known_args(args)
+    args, uri = parser.parse_known_args(arguments)
 
     if uri and uri[0].startswith('archipelago://'):
         args.url = uri[0]
@@ -1377,14 +1378,14 @@ API3_TO_API4_COMPAT_ITEMS: set[CompatItemHolder] = {
 }
 
 def compat_item_to_network_items(compat_item: CompatItemHolder) -> list[NetworkItem]:
-    item_id = get_full_item_list()[compat_item.name].code
+    item_id = item_tables.item_table[compat_item.name].code
     network_item = NetworkItem(item_id, 0, 0, 0)
     return compat_item.quantity * [network_item]
 
 
 def calculate_items(ctx: SC2Context) -> dict[SC2Race, list[int]]:
     items = ctx.items_received.copy()
-    item_list = get_full_item_list()
+    item_list = item_tables.item_table
     def create_network_item(item_name: str) -> NetworkItem:
         return NetworkItem(item_list[item_name].code, 0, 0, 0)
 
@@ -1487,7 +1488,7 @@ def calculate_items(ctx: SC2Context) -> dict[SC2Race, list[int]]:
             item_names.COMMAND_CENTER_EXTRA_SUPPLIES,
             item_names.PLANETARY_FORTRESS_ORBITAL_MODULE
         ]
-        replacement_item_ids = [get_full_item_list()[item_name].code for item_name in orbital_command_replacement_items]
+        replacement_item_ids = [item_tables.item_table[item_name].code for item_name in orbital_command_replacement_items]
         if sum(item_id in replacement_item_ids for item_id in items) > 0:
             logger.warning(inspect.cleandoc("""
                 Both old Orbital Command and its replacements are present in the world. Skipping compatibility handling.
@@ -1495,13 +1496,13 @@ def calculate_items(ctx: SC2Context) -> dict[SC2Race, list[int]]:
         else:
             # None of replacement items are present
             # L1: MULE and Scanner Sweep
-            scanner_sweep_data = get_full_item_list()[item_names.COMMAND_CENTER_SCANNER_SWEEP]
-            mule_data = get_full_item_list()[item_names.COMMAND_CENTER_MULE]
+            scanner_sweep_data = item_tables.item_table[item_names.COMMAND_CENTER_SCANNER_SWEEP]
+            mule_data = item_tables.item_table[item_names.COMMAND_CENTER_MULE]
             accumulators[scanner_sweep_data.race][scanner_sweep_data.type.flag_word] += 1 << scanner_sweep_data.number
             accumulators[mule_data.race][mule_data.type.flag_word] += 1 << mule_data.number
             if orbital_command_count >= 2:
                 # L2 MULE and Scanner Sweep usable even in Planetary Fortress Mode
-                planetary_orbital_module_data = get_full_item_list()[item_names.PLANETARY_FORTRESS_ORBITAL_MODULE]
+                planetary_orbital_module_data = item_tables.item_table[item_names.PLANETARY_FORTRESS_ORBITAL_MODULE]
                 accumulators[planetary_orbital_module_data.race][planetary_orbital_module_data.type.flag_word] += \
                     1 << planetary_orbital_module_data.number
 
@@ -1516,7 +1517,7 @@ def calculate_items(ctx: SC2Context) -> dict[SC2Race, list[int]]:
         # Equivalent to "Progressive Weapon/Armor Upgrade" item
         global_upgrades: set[str] = upgrade_included_names[GenericUpgradeItems.option_bundle_all]
         for global_upgrade in global_upgrades:
-            race = get_full_item_list()[global_upgrade].race
+            race = item_tables.item_table[global_upgrade].race
             upgrade_flaggroup = race_to_item_type[race]["Upgrade"].flag_word
             for bundled_number in get_bundle_upgrade_member_numbers(global_upgrade):
                 accumulators[race][upgrade_flaggroup] += upgrade_count << bundled_number
@@ -1529,7 +1530,7 @@ def get_bundle_upgrade_member_numbers(bundled_item: str) -> list[int]:
     if bundled_item in (item_names.PROGRESSIVE_PROTOSS_GROUND_UPGRADE, item_names.PROGRESSIVE_PROTOSS_AIR_UPGRADE):
         # Shields are handled as a maximum of those two
         upgrade_elements = [item_name for item_name in upgrade_elements if item_name != item_names.PROGRESSIVE_PROTOSS_SHIELDS]
-    return [get_full_item_list()[item_name].number for item_name in upgrade_elements]
+    return [item_tables.item_table[item_name].number for item_name in upgrade_elements]
 
 
 def calc_difficulty(difficulty: int):
@@ -1686,7 +1687,7 @@ def kerrigan_primal(ctx: SC2Context, kerrigan_level: int) -> bool:
         return completed >= (total_missions / 2)
     elif ctx.kerrigan_primal_status == KerriganPrimalStatus.option_item:
         codes = [item.item for item in ctx.items_received]
-        return get_full_item_list()[item_names.KERRIGAN_PRIMAL_FORM].code in codes
+        return item_tables.item_table[item_names.KERRIGAN_PRIMAL_FORM].code in codes
     return False
 
 
@@ -1704,7 +1705,7 @@ def get_mission_variant(mission_id: int) -> int:
 
 
 def get_item_flag_word(item_name: str) -> int:
-    return get_full_item_list()[item_name].type.flag_word
+    return item_tables.item_table[item_name].type.flag_word
 
 
 async def starcraft_launch(ctx: SC2Context, mission_id: int):
@@ -1753,7 +1754,7 @@ class ArchipelagoBot(bot.bot_ai.BotAI):
 
         super(ArchipelagoBot, self).__init__()
 
-    async def on_step(self, iteration: int):
+    async def on_step(self, iteration: int) -> None:
         if self.want_close:
             self.want_close = False
             await self._client.leave()

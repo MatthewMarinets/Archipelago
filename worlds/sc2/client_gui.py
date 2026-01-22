@@ -41,27 +41,27 @@ class MissionButton(HoverableButton, MDTooltip):
     is_goal = BooleanProperty(False)
     showing_tooltip = BooleanProperty(False)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super(HoverableButton, self).__init__(**kwargs)
         self._tooltip = ServerToolTip(text=self.text, markup=True)
         self._tooltip.padding = [5, 2, 5, 2]
 
-    def on_enter(self):
+    def on_enter(self) -> None:
         self._tooltip.text = self.tooltip_text
 
         if self.tooltip_text != "":
             self.display_tooltip()
 
-    def on_leave(self):
+    def on_leave(self) -> None:
         self.remove_tooltip()
     
-    def display_tooltip(self, *args):
+    def display_tooltip(self, *args) -> None:
         self.showing_tooltip = True
-        return super().display_tooltip(*args)
+        super().display_tooltip(*args)
     
-    def remove_tooltip(self, *args):
+    def remove_tooltip(self, *args) -> None:
         self.showing_tooltip = False
-        return super().remove_tooltip(*args)
+        super().remove_tooltip(*args)
 
     @property
     def ctx(self) -> SC2Context:
@@ -93,7 +93,7 @@ class MissionCategory(GridLayout):
 
 
 class SC2JSONtoKivyParser(KivyJSONtoTextParser):
-    def _handle_item_name(self, node: JSONMessagePart):
+    def _handle_item_name(self, node: JSONMessagePart) -> str:
         item_name = node["text"]
         if self.ctx.slot_info[node["player"]].game != STARCRAFT2 or item_name not in item_descriptions:
             return super()._handle_item_name(node)
@@ -118,7 +118,7 @@ class SC2JSONtoKivyParser(KivyJSONtoTextParser):
         node.setdefault("refs", []).append(ref)
         return super(KivyJSONtoTextParser, self)._handle_item_name(node)
 
-    def _handle_text(self, node: JSONMessagePart):
+    def _handle_text(self, node: JSONMessagePart) -> str:
         if node.get("keep_markup", False):
             for ref in node.get("refs", []):
                 node["text"] = f"[ref={self.ref_count}|{ref}]{node['text']}[/ref]"

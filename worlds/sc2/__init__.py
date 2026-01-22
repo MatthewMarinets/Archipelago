@@ -9,13 +9,11 @@ from Options import Accessibility, OptionError
 from worlds.AutoWorld import WebWorld, World
 from . import location_groups
 from .item.item_groups import unreleased_items, war_council_upgrades
-from .item.item_tables import (
-    get_full_item_list,
-    not_balanced_starting_units, WEAPON_ARMOR_UPGRADE_MAX_LEVEL,
-)
 from .item import (
-    FilterItem, ItemFilterFlags, StarcraftItem, item_groups, item_names, item_tables, item_parents,
-    ZergItemType, ProtossItemType, ItemData
+    item_groups, item_names, item_tables, item_parents,
+    FilterItem, ItemFilterFlags, StarcraftItem,
+    ZergItemType, ProtossItemType, TerranItemType,
+    ItemData,
 )
 from .locations import (
 	get_locations, DEFAULT_LOCATION_LIST, get_location_types, get_location_flags,
@@ -95,7 +93,7 @@ class SC2World(World):
     web = Starcraft2WebWorld()
     settings: ClassVar[settings.Starcraft2Settings]
 
-    item_name_to_id = {name: data.code for name, data in get_full_item_list().items()}
+    item_name_to_id = {name: data.code for name, data in item_tables.item_table.items()}
     location_name_to_id = {location.name: location.code for location in DEFAULT_LOCATION_LIST}
     options_dataclass = Starcraft2Options
     options: Starcraft2Options
@@ -119,7 +117,7 @@ class SC2World(World):
         self.logic = None
 
     def create_item(self, name: str) -> StarcraftItem:
-        data = get_full_item_list()[name]
+        data = item_tables.item_table[name]
         return StarcraftItem(name, data.classification, data.code, self.player)
 
     def generate_early(self) -> None:
@@ -304,7 +302,9 @@ class SC2World(World):
                 state.update_reachable_regions(self.player)
                 return state
 
-            self._fill_needed_items(state_with_kerrigan_levels, weapon_armor_item_names, WEAPON_ARMOR_UPGRADE_MAX_LEVEL)
+            self._fill_needed_items(
+                state_with_kerrigan_levels, weapon_armor_item_names, item_tables.WEAPON_ARMOR_UPGRADE_MAX_LEVEL
+            )
         if (
             self.options.kerrigan_levels_per_mission_completed > 0
             and self.options.required_tactics != RequiredTactics.option_no_logic
@@ -563,7 +563,7 @@ def flag_excludes_by_faction_presence(world: SC2World, item_list: list[FilterIte
                 item.flags |= ItemFilterFlags.FilterExcluded
                 continue
         if not zerg_missions and item.data.race == SC2Race.ZERG:
-            if (item.data.type != item_tables.ZergItemType.Ability
+            if (item.data.type != ZergItemType.Ability
                 and item.data.type != ZergItemType.Level
             ):
                 item.flags |= ItemFilterFlags.FilterExcluded
@@ -583,9 +583,9 @@ def flag_excludes_by_faction_presence(world: SC2World, item_list: list[FilterIte
             item.flags |= ItemFilterFlags.FilterExcluded
         if (not zerg_build_missions
             and item.data.type in (
-                item_tables.ZergItemType.Unit,
-                item_tables.ZergItemType.Mercenary,
-                item_tables.ZergItemType.Evolution_Pit,
+                ZergItemType.Unit,
+                ZergItemType.Mercenary,
+                ZergItemType.Evolution_Pit,
             )
             and item.name not in allowed_remaining_zerg_units
         ):
@@ -595,9 +595,9 @@ def flag_excludes_by_faction_presence(world: SC2World, item_list: list[FilterIte
             # or warp gate improvements because that item type is mixed in with
             # e.g. Reconstruction Beam and Overwatch
             and item.data.type in (
-                item_tables.ProtossItemType.Unit,
-                item_tables.ProtossItemType.Unit_2,
-                item_tables.ProtossItemType.Building,
+                ProtossItemType.Unit,
+                ProtossItemType.Unit_2,
+                ProtossItemType.Building,
             )
             and item.name not in allowed_remaining_protoss_units
         ):
@@ -614,17 +614,17 @@ def flag_excludes_by_faction_presence(world: SC2World, item_list: list[FilterIte
                 item.flags |= ItemFilterFlags.FilterExcluded
 
         # Faction +attack/armour upgrades
-        if (item.data.type == item_tables.TerranItemType.Upgrade
+        if (item.data.type == TerranItemType.Upgrade
             and not terran_build_missions
             and not auto_upgrades_in_nobuilds
         ):
             item.flags |= ItemFilterFlags.FilterExcluded
-        if (item.data.type == item_tables.ZergItemType.Upgrade
+        if (item.data.type == ZergItemType.Upgrade
             and not zerg_build_missions
             and not auto_upgrades_in_nobuilds
         ):
             item.flags |= ItemFilterFlags.FilterExcluded
-        if (item.data.type == item_tables.ProtossItemType.Upgrade
+        if (item.data.type == ProtossItemType.Upgrade
             and not protoss_build_missions
             and not auto_upgrades_in_nobuilds
         ):
@@ -741,13 +741,13 @@ def flag_mission_based_item_excludes(world: SC2World, item_list: list[FilterItem
 
         # Todo(mm): How should no-build only / grant_story_tech affect excluding Kerrigan items?
         # Exclude Primal form based on Kerrigan presence or primal form option
-        if (item.data.type == item_tables.ZergItemType.Primal_Form
+        if (item.data.type == ZergItemType.Primal_Form
             and ((not kerrigan_is_present) or world.options.kerrigan_primal_status != KerriganPrimalStatus.option_item)
         ):
             item.flags |= ItemFilterFlags.FilterExcluded
 
         # Remove Kerrigan abilities if there's no Kerrigan
-        if item.data.type == item_tables.ZergItemType.Ability and remove_kerrigan_abils:
+        if item.data.type == ZergItemType.Ability and remove_kerrigan_abils:
             item.flags |= ItemFilterFlags.FilterExcluded
 
         # Remove Nova items if there's no Nova
@@ -848,7 +848,7 @@ def flag_start_unit(world: SC2World, item_list: list[FilterItem], starter_unit: 
         # The race of the early unit has been chosen
         basic_units = get_basic_units(world.options.required_tactics.value, first_race)
         if starter_unit == StarterUnit.option_balanced:
-            basic_units = basic_units.difference(not_balanced_starting_units)
+            basic_units = basic_units.difference(item_tables.not_balanced_starting_units)
         if first_mission == SC2Mission.DARK_WHISPERS:
             # Special case - you don't have a logicless location but need an AA
             basic_units = basic_units.difference(
