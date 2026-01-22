@@ -647,7 +647,7 @@ class SC2Context(CommonContext):
         self.maximum_supply_reduction_per_item: int = options.MaximumSupplyReductionPerItem.default
         self.lowest_maximum_supply: int = options.LowestMaximumSupply.default
         self.research_cost_reduction_per_item: int = options.ResearchCostReductionPerItem.default
-        self.nova_presence: set[str] = NovaPresence.default
+        self.nova_presence: frozenset[str] = NovaPresence.default
         self.mercenary_highlanders: bool = False
         self.kerrigan_levels_per_mission_completed = 0
         self.trade_enabled: int = EnableVoidTrade.default
@@ -860,14 +860,14 @@ class SC2Context(CommonContext):
             self.nova_grant_story_tech = args["slot_data"].get("nova_grant_story_tech", False)
             if self.slot_data_version < 4:
                 if args["slot_data"].get("nova_covert_ops_only", True):
-                    self.nova_presence = {NovaPresenceOptions.NCO_TERRAN}
+                    self.nova_presence = frozenset((NovaPresenceOptions.NCO_TERRAN,))
                 else:
-                    self.nova_presence = {NovaPresenceOptions.NCO_TERRAN, NovaPresenceOptions.GHOST_OF_A_CHANCE}
+                    self.nova_presence = frozenset((NovaPresenceOptions.NCO_TERRAN, NovaPresenceOptions.GHOST_OF_A_CHANCE,))
             if self.slot_data_version < 5:
                 if args["slot_data"].get("use_nova_wol_fallback", True):
-                    self.nova_presence = {NovaPresenceOptions.NCO_TERRAN}
+                    self.nova_presence = frozenset((NovaPresenceOptions.NCO_TERRAN,))
                 else:
-                    self.nova_presence = {NovaPresenceOptions.NCO_TERRAN, NovaPresenceOptions.GHOST_OF_A_CHANCE}
+                    self.nova_presence = frozenset((NovaPresenceOptions.NCO_TERRAN, NovaPresenceOptions.GHOST_OF_A_CHANCE,))
             self.trade_enabled = args["slot_data"].get("enable_void_trade", EnableVoidTrade.option_false)
             self.trade_age_limit = args["slot_data"].get("void_trade_age_limit", VoidTradeAgeLimit.default)
             self.trade_workers_allowed = args["slot_data"].get("void_trade_workers", VoidTradeWorkers.default)
@@ -1270,7 +1270,7 @@ class SC2Context(CommonContext):
 
         # Create a storage entry for the time the trade was confirmed
         trade_time = reply["value"][TRADE_DATASTORAGE_LOCK]
-        storage_entry = {}
+        storage_entry: dict[str, int] = {}
         for unit in units:
             storage_entry[unit] = storage_entry.get(unit, 0) + 1
 
