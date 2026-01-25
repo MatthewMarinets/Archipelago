@@ -657,7 +657,7 @@ class SC2Context(CommonContext):
         self.trade_underway: bool = False
         self.trade_latest_reply: dict[str, Any] | None = None
         self.trade_reply_event = asyncio.Event()
-        self.trade_lock_wait: int = 0
+        self.trade_lock_wait: float = 0.0
         self.trade_lock_start: float | None = None
         self.trade_response: str | None = None
         self.difficulty_damage_modifier: int = DifficultyDamageModifier.default
@@ -1594,7 +1594,7 @@ def calculate_story_tech(ctx: SC2Context, mission: SC2Mission) -> bool:
         result = GrantStoryTech.option_grant
     else:
         result = ctx.grant_story_tech
-    return result
+    return result != 0
 
 def calculate_soa_options(ctx: SC2Context, mission: SC2Mission) -> int:
     """
@@ -2084,8 +2084,14 @@ def calc_available_nodes(ctx: SC2Context) -> tuple[list[int], dict[int, list[int
         else:
             break
 
-    accessible_missions = [mission_order_object for mission_order_object in accessible_objects if isinstance(mission_order_object, MissionSlotData)]
-    beaten_accessible_missions: set[int] = {mission.mission_id for mission in accessible_missions if mission.mission_id in beaten_missions}
+    accessible_missions = [
+        mission_order_object
+        for mission_order_object in accessible_objects
+        if isinstance(mission_order_object, MissionSlotData)
+    ]
+    beaten_accessible_missions = {
+        mission.mission_id for mission in accessible_missions if mission.mission_id in beaten_missions
+    }
     for mission_order_object in mission_order_objects:
         # re-generate tooltip accessibility
         for sub_rule in mission_order_object.entry_rule.sub_rules:
