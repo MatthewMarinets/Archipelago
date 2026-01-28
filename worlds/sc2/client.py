@@ -101,6 +101,36 @@ TRADE_LOCK_WAIT_LIMIT = 540000 / 1.4 # Time in ms that the client may spend tryi
 STARCRAFT2 = "Starcraft 2"
 STARCRAFT2_WOL = "Starcraft 2 Wings of Liberty"
 
+# Text helpers
+CHAR_WIDTHS: dict[str, float] = {
+    ",": 0.8,
+    "i": 0.9, "j": 0.9, "l": 0.9,
+    "!": 0.95,
+    "I": 1.0, ".": 1.0,
+    "t": 1.15,
+    "r": 1.25, "f": 1.25,
+    "v": 1.75, "y": 1.75,
+    "x": 1.8, "z": 1.75,
+    "c": 1.85, "k": 1.85, "s": 1.85, "<": 1.85, ">": 1.85,
+    "a": 1.95, "e": 1.95, "L": 1.95,
+    "F": 1.975,
+    "h": 2.0, "u": 2.0,
+    "p": 2.02,
+    "o": 2.05, "q": 2.05, "g": 2.05, "d": 2.05, "b": 2.05, "E": 2.05, "J": 2.05,
+    "$": 2.0,
+    "S": 2.15, "Z": 2.15,
+    "T": 2.2, "Y": 2.2, "#": 2.2,
+    "B": 2.25, "K": 2.25, "R": 2.25, "X": 2.25,
+    "P": 2.3,
+    "C": 2.35, "D": 2.35, "U": 2.35, "V": 2.35,
+    "A": 2.4,
+    "G": 2.45, "O": 2.45, "Q": 2.45,
+    "H": 2.55, "N": 2.55,
+    "w": 2.75,
+    "m": 3.1,
+    "M": 3.15, "W": 3.15,
+}
+"""Approximate character widths in Roboto Medium, in periods"""
 
 # Data version file path.
 # This file is used to tell if the downloaded data are outdated
@@ -545,7 +575,11 @@ class StarcraftClientProcessor(ClientCommandProcessor):
             metadata = None
 
         tempzip, metadata = download_latest_release_zip(
-            DATA_REPO_OWNER, DATA_REPO_NAME, DATA_API_VERSION, metadata=metadata, force_download=True)
+            DATA_REPO_OWNER, DATA_REPO_NAME, DATA_API_VERSION,
+            metadata=metadata,
+            force_download=True,
+            monospace_progress=ctx.ui is None,
+        )
 
         if tempzip:
             try:
@@ -2276,50 +2310,97 @@ def download_latest_release_zip(
     repo: str,
     api_version: str,
     metadata: str | None = None,
-    force_download=False
+    force_download: bool = False,
+    monospace_progress: bool = False,
 ) -> tuple[str, str | None]:
     """Downloads the latest release of a GitHub repo to the current directory as a .zip file."""
     import requests
 
-    headers = {"Accept": 'application/vnd.github.v3+json'}
+    headers = {"Accept": "application/vnd.github.v3+json"}
     url = f"https://api.github.com/repos/{owner}/{repo}/releases/tags/{api_version}"
+    user_facing_url = f"https://github.com/{owner}/{repo}/releases/tag/{api_version}"
 
+    CHUNK_SIZE = 1 << 22  # 4 MiB
+    LOADED_MESSAGE = "Downloading"
+    PROGRESS_FRACTION = len(LOADED_MESSAGE)
+    DEFAULT_CHAR_WIDTH = 2.0
+    if monospace_progress:
+        def dot_width(string: str) -> int:
+            return len(string)
+    else:
+        def dot_width(string: str) -> int:
+            return int(sum(CHAR_WIDTHS.get(c, DEFAULT_CHAR_WIDTH) for c in string) + 0.5)
+    NUM_DOTS = dot_width(LOADED_MESSAGE)
+
+    r2: requests.Response | None = None
     try:
-        r1 = requests.get(url, headers=headers)
+        r1 = requests.get(url, headers=headers, timeout=15.0)
         if r1.status_code == 200:
             latest_metadata = r1.json()
             cleanup_downloaded_metadata(latest_metadata)
             latest_metadata = str(latest_metadata)
-            # sc2_logger.info(f"Latest version: {latest_metadata}.")
         else:
             sc2_logger.warning(f"Status code: {r1.status_code}")
             sc2_logger.warning("Failed to reach GitHub. Could not find download link.")
             sc2_logger.warning(f"text: {r1.text}")
             return "", metadata
 
-        if (force_download is False) and (metadata == latest_metadata):
+        if not force_download and (metadata == latest_metadata):
             sc2_logger.info("Latest version already installed.")
             return "", metadata
 
-        sc2_logger.info(f"Attempting to download latest version of API version {api_version} of {repo}.")
+        sc2_logger.info(f"Attempting to download latest {api_version} release of {repo}.")
         download_url = r1.json()["assets"][0]["browser_download_url"]
 
-        r2 = requests.get(download_url, headers=headers)
-        if r2.status_code == 200 and zipfile.is_zipfile(io.BytesIO(r2.content)):
-            tempdir = tempfile.gettempdir()
-            file = tempdir + os.sep + f"{repo}.zip"
-            with open(file, "wb") as fh:
-                fh.write(r2.content)
-            sc2_logger.info(f"Successfully downloaded {repo}.zip. Installing...")
-            return file, latest_metadata
-        else:
-            sc2_logger.warning(f"Status code: {r2.status_code}")
-            sc2_logger.warning("Download failed.")
-            sc2_logger.warning(f"text: {r2.text}")
+        tempdir = tempfile.gettempdir()
+        file = tempdir + os.sep + f"{repo}.zip"
+        r2 = requests.get(download_url, headers=headers, timeout=(12.5, 60.0), stream=True)
+        if r2.status_code != 200:
+            r2.close()
+            sc2_logger.warning(f"Download failed with status code {r2.status_code}.")
             return "", metadata
+        with open(file, "wb") as fp:
+            total_length = r2.headers.get("content-length")
+            if total_length is None:
+                fp.write(r2.content)
+            else:
+                bytes_written = 0
+                bytes_total = int(total_length)
+                last_progress = -1
+                for chunk in r2.iter_content(chunk_size=CHUNK_SIZE):
+                    bytes_written += len(chunk)
+                    fp.write(chunk)
+                    progress = bytes_written * PROGRESS_FRACTION // bytes_total
+                    if progress > last_progress:
+                        loaded_string = LOADED_MESSAGE[:progress]
+                        num_dots = NUM_DOTS - dot_width(loaded_string)
+                        sc2_logger.info(f"Progress: [ {loaded_string}{'.'*num_dots} ]")
+                        last_progress = progress
+                if bytes_written < bytes_total:
+                    sc2_logger.warning(
+                        f"Could not download the file. Written {bytes_written}/{bytes_total} bytes. "
+                        f"(status {r2.status_code})"
+                    )
+                    return "", metadata
+            if r2.status_code != 200:
+                r2.close()
+                sc2_logger.warning(f"Download failed with status code {r2.status_code}.")
+                return "", metadata
+        sc2_logger.info(f"Successfully downloaded {repo}.zip. Installing...")
+        return file, latest_metadata
     except requests.ConnectionError:
         sc2_logger.warning("Failed to reach GitHub. Could not find download link.")
         return "", metadata
+    except requests.Timeout:
+        sc2_logger.warning(f"Download request timed out. Try again or check connection to {user_facing_url}")
+        return "", metadata
+    except Exception as ex:
+        sc2_logger.warning(f"An unknown exception occurred: {type(ex)}: {ex}")
+        return "", metadata
+    finally:
+        r1.close()
+        if r2 is not None:
+            r2.close()
 
 
 def cleanup_downloaded_metadata(medatada_json: dict) -> None:
@@ -2352,6 +2433,8 @@ def is_mod_update_available(owner: str, repo: str, api_version: str, metadata: s
     except requests.ConnectionError:
         sc2_logger.warning("Failed to reach GitHub while checking for updates.")
         return False
+    finally:
+        r1.close()
 
 
 def get_location_offset(mission_id: int) -> int:
