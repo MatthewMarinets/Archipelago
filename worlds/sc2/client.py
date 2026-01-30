@@ -1763,7 +1763,11 @@ def starcraft_launch(ctx: SC2Context, mission_id: int) -> subprocess.Popen | Err
     command_line = [wine] + command_line
     sc2_logger.debug(f"WINEPREFIX: {wine_prefix}")
     sc2_logger.debug(command_line)
-    return subprocess.Popen(command_line, env=os.environ | {"WINEPREFIX": wine_prefix})
+    return subprocess.Popen(
+        command_line,
+        env=os.environ | {"WINEPREFIX": wine_prefix},
+        stderr=subprocess.DEVNULL,
+    )
 
 
 class ArchipelagoBot(bot.bot_ai.BotAI):
