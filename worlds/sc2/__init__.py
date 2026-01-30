@@ -263,7 +263,8 @@ class SC2World(World):
                     if lookup_location_id_to_type[location.address] == LocationType.VICTORY_CACHE:
                         # Ensure that if there are multiple items given for finishing a mission and that at least
                         # one is progressive, the flag kept is progressive.
-                        location_name = self.location_id_to_name[(location.address // VICTORY_MODULO) * VICTORY_MODULO]
+                        location_id = (location.address // locations.VICTORY_MODULO) * locations.VICTORY_MODULO
+                        location_name = self.location_id_to_name[location_id]
                         old_classification = mission_item_classification.get(location_name, 0)
                         mission_item_classification[location_name] = old_classification | location.item.classification.as_flag()
                     else:
