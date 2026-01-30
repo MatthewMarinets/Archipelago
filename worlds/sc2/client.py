@@ -13,18 +13,17 @@ import sys
 import tempfile
 import queue
 import zipfile
-import io
+import subprocess
 import random
 import concurrent.futures
 import time
 import uuid
-import re
 from pathlib import Path
 from typing import Any, TYPE_CHECKING, NamedTuple, Type, Sequence, Iterable
 
 # CommonClient import first to trigger ModuleUpdater
 from CommonClient import CommonContext, server_loop, ClientCommandProcessor, gui_enabled, get_base_parser, handle_url_arg
-from Utils import init_logging, is_windows, async_start
+from Utils import init_logging, async_start
 from .item import item_names, item_parents, race_to_item_type
 from .item.item_annotations import ITEM_NAME_ANNOTATIONS
 from .item.item_groups import item_name_groups, unlisted_item_name_groups, ItemGroupNames
@@ -47,12 +46,13 @@ from .mission_tables import MissionFlag
 from .tables import NovaPresenceOptions
 from .transfer_data import normalized_unit_types, worker_units
 from . import SC2World
+from .apclient import user_paths
+from .apclient.failable import Error
 
 
 if __name__ == "__main__":
     init_logging("SC2Client", exception_logger="Client")
 
-logger = logging.getLogger("Client")
 sc2_logger = logging.getLogger("Starcraft2")
 
 import nest_asyncio
@@ -105,7 +105,11 @@ STARCRAFT2_WOL = "Starcraft 2 Wings of Liberty"
 # This file is used to tell if the downloaded data are outdated
 # Associated with /download_data command
 def get_metadata_file() -> str:
-    return os.environ["SC2PATH"] + os.sep + "ArchipelagoSC2Metadata.txt"
+    sc2_install_dir = user_paths.get_sc2_install_dir()
+    if isinstance(sc2_install_dir, Error):
+        sc2_logger.error(sc2_install_dir.message)
+        return ""
+    return os.path.join(sc2_install_dir, "ArchipelagoSC2Metadata.txt")
 
 def _remap_color_option(slot_data_version: int, color: int) -> int:
     """Remap colour options for backwards compatibility with older slot data"""
@@ -324,7 +328,7 @@ class StarcraftClientProcessor(ClientCommandProcessor):
             elif isinstance(element, str):
                 ColouredMessage(indent_str)("- ").coloured(name, "white").send(self.ctx)
                 for child in child_states:
-                    display_tree(*child[:4], indent=indent+2)
+                    display_tree(*child[:4], indent=indent+2)  # type: ignore
             elif isinstance(element, int):
                 items = items_received.get(element, [])
                 if not items:
@@ -336,7 +340,7 @@ class StarcraftClientProcessor(ClientCommandProcessor):
                         (" by ").player(item.player)
                     ).send(self.ctx)
                 for child in child_states:
-                    display_tree(*child[:4], indent=indent+2)
+                    display_tree(*child[:4], indent=indent+2)  # type: ignore
             non_matching_descendents = sum(child[5] - child[4] for child in children)
             if non_matching_descendents > 0:
                 self.formatted_print(f"{indent_str}  + {non_matching_descendents} child items that don't match the filter")
@@ -519,11 +523,13 @@ class StarcraftClientProcessor(ClientCommandProcessor):
     def _cmd_set_path(self, path: str = '') -> bool:
         """Manually set the SC2 install directory (if the automatic detection fails)."""
         if path:
-            os.environ["SC2PATH"] = path
+            SC2World.settings.sc2_install_path = SC2World.settings.Sc2InstallPath(path)
+            force_settings_save_on_close()
             is_mod_installed_correctly()
             return True
         else:
             sc2_logger.warning("When using set_path, you must type the path to your SC2 install directory.")
+        user_paths.reset_cache()
         return False
 
     def _cmd_download_data(self) -> bool:
@@ -534,9 +540,10 @@ class StarcraftClientProcessor(ClientCommandProcessor):
 
     @staticmethod
     def _download_data(ctx: SC2Context) -> bool:
-        if "SC2PATH" not in os.environ:
-            check_game_install_path()
-
+        sc2_install_dir = user_paths.get_sc2_install_dir()
+        if isinstance(sc2_install_dir, Error):
+            sc2_logger.warning(sc2_install_dir.message)
+            return False
         if os.path.exists(get_metadata_file()):
             with open(get_metadata_file(), "r") as f:
                 metadata = f.read()
@@ -552,7 +559,7 @@ class StarcraftClientProcessor(ClientCommandProcessor):
 
         if tempzip:
             try:
-                zipfile.ZipFile(tempzip).extractall(path=os.environ["SC2PATH"])
+                zipfile.ZipFile(tempzip).extractall(path=sc2_install_dir)
                 sc2_logger.info("Download complete. Package installed.")
                 if metadata is not None:
                     with open(get_metadata_file(), "w") as f:
@@ -598,7 +605,7 @@ class SC2Context(CommonContext):
 
     def __init__(self, *args, **kwargs) -> None:
         super(SC2Context, self).__init__(*args, **kwargs)
-        self.raw_text_parser = SC2JSONtoTextParser(self)
+        self.raw_text_parser = SC2JSONtoTextParser(self)  # type: ignore
 
         self.data_out_of_date: bool = False
         self.difficulty = -1
@@ -621,7 +628,7 @@ class SC2Context(CommonContext):
         self.final_mission_ids: list[int] = [29]
         self.final_locations: list[int] = []
         self.announcements: queue.Queue = queue.Queue()
-        self.sc2_run_task: asyncio.Task | None = None
+        self.sc2_process: subprocess.Popen | None = None
         self.missions_unlocked: bool = False  # allow launching missions ignoring requirements
         self.max_upgrade_level: int = MaxUpgradeLevel.default
         self.generic_upgrade_missions = 0
@@ -900,7 +907,7 @@ class SC2Context(CommonContext):
 
             self.build_location_to_mission_mapping()
 
-            # Looks for the required maps and mods for SC2. Runs check_game_install_path.
+            # Looks for the required maps and mods for SC2.
             maps_present = is_mod_installed_correctly()
             if os.path.exists(get_metadata_file()):
                 with open(get_metadata_file(), "r") as f:
@@ -1028,8 +1035,8 @@ class SC2Context(CommonContext):
             # If the client is not set up yet, the game is not done loading and must be force-closed
             if not hasattr(self.last_bot, "client"):
                 bot.sc2process.kill_switch.kill_all()
-        if self.sc2_run_task:
-            self.sc2_run_task.cancel()
+        if self.sc2_process and self.sc2_process.poll() is None:
+            self.sc2_process.kill()
 
     async def disconnect(self, allow_autoreconnect: bool = False) -> None:
         self.finished_game = False
@@ -1037,17 +1044,21 @@ class SC2Context(CommonContext):
 
     def play_mission(self, mission_id: int) -> bool:
         if self.missions_unlocked or is_mission_available(self, mission_id):
-            if self.sc2_run_task:
-                if not self.sc2_run_task.done():
-                    sc2_logger.warning("Starcraft 2 Client is still running!")
-                self.sc2_run_task.cancel()  # doesn't actually close the game, just stops the python task
+            if self.sc2_process and self.sc2_process.poll() is None:
+                sc2_logger.warning("Starcraft 2 game is still running")
+                return False
             # clean up locations bank from previous map
             banks.file_cleanup()
             if self.slot is None:
-                sc2_logger.warning("Launching Mission without Archipelago authentication, "
-                                   "checks will not be registered to server.")
-            self.sc2_run_task = asyncio.create_task(starcraft_launch(self, mission_id),
-                                                    name="Starcraft 2 Launch")
+                sc2_logger.warning(
+                    "Launching Mission without Archipelago authentication, "
+                    "checks will not be registered to server."
+                )
+            sc2_process = starcraft_launch(self, mission_id)
+            if isinstance(sc2_process, Error):
+                sc2_logger.warning(sc2_process.message)
+                return False
+            self.sc2_process = sc2_process
             return True
         else:
             sc2_logger.info(f"{lookup_id_to_mission[mission_id].mission_name} is not currently unlocked.")
@@ -1493,7 +1504,7 @@ def calculate_items(ctx: SC2Context) -> dict[SC2Race, list[int]]:
         ]
         replacement_item_ids = [item_tables.item_table[item_name].code for item_name in orbital_command_replacement_items]
         if sum(item_id in replacement_item_ids for item_id in items) > 0:
-            logger.warning(inspect.cleandoc("""
+            sc2_logger.warning(inspect.cleandoc("""
                 Both old Orbital Command and its replacements are present in the world. Skipping compatibility handling.
             """))
         else:
@@ -1711,15 +1722,48 @@ def get_item_flag_word(item_name: str) -> int:
     return item_tables.item_table[item_name].type.flag_word
 
 
-async def starcraft_launch(ctx: SC2Context, mission_id: int):
-    sc2_logger.info(f"Launching {lookup_id_to_mission[mission_id].mission_name}. If game does not launch check log file for errors.")
+def starcraft_launch(ctx: SC2Context, mission_id: int) -> subprocess.Popen | Error[str]:
+    sc2_logger.info(f"Launching {lookup_id_to_mission[mission_id].mission_name}.")
+    sc2_install_dir = user_paths.get_sc2_install_dir()
+    if isinstance(sc2_install_dir, Error):
+        return sc2_install_dir
+    sc2_switcher_exe = os.path.join(sc2_install_dir, "Support64", "SC2Switcher_x64.exe")
+    difficulty = ctx.difficulty if ctx.difficulty_override < 0 else ctx.difficulty_override
+    # Note(mm): SC2Switcher accepts difficulty on a scale of 1~4, the Archipelago option is 0~3, though
+    difficulty = min(4, difficulty + 1)
+    speed = ctx.game_speed if ctx.game_speed_override < 0 else ctx.game_speed_override
+    TRIGDEBUG = False
+    mission = lookup_id_to_mission[mission_id]
+    map_path = os.path.join("ArchipelagoCampaign", mission.campaign.folder, mission.map_file + ".SC2Map")
+    command_line = [
+        sc2_switcher_exe,
+        "-run", map_path,
+        # Note(mm): displaymode 2 is available for true fullscreen
+        "-displaymode", ("0" if SC2World.settings.game_windowed_mode else "1"),
+        "-difficulty", str(difficulty),
+    ]
+    if TRIGDEBUG:
+        command_line.append("-trigdebug")
+    if speed != GameSpeed.option_default:
+        # Note(mm): SC2Switcher accepts speed on a scale of 0~5, the Archipelago option 0 is "default" though
+        speed = max(0, speed - 1)
+        command_line.extend(("-speed", str(speed)))
+    if sys.platform == "win32":
+        with DllDirectory(None):
+            sc2_logger.debug(command_line)
+            return subprocess.Popen(command_line)
 
-    with DllDirectory(None):
-        run_game(
-            bot.maps.get(lookup_id_to_mission[mission_id].map_file),
-            [Bot(Race.Terran, ArchipelagoBot(ctx, mission_id), name="Archipelago", fullscreen=not SC2World.settings.game_windowed_mode)],
-            realtime=True,
-        )
+    # Linux
+    wine = user_paths.get_wine_path()
+    if isinstance(wine, Error):
+        return wine
+    wine_prefix = user_paths.get_wine_prefix()
+    if isinstance(wine_prefix, Error):
+        return wine_prefix
+    command_line = [wine] + command_line
+    sc2_logger.debug(f"WINEPREFIX: {wine_prefix}")
+    sc2_logger.debug(command_line)
+    return subprocess.Popen(command_line, env=os.environ | {"WINEPREFIX": wine_prefix})
 
 
 class ArchipelagoBot(bot.bot_ai.BotAI):
@@ -1786,7 +1830,7 @@ class ArchipelagoBot(bot.bot_ai.BotAI):
             else:
                 game_speed = self.ctx.game_speed
 
-            banks.send_options(
+            error = banks.send_options(
                 f" {difficulty}"
                 f" {generic_upgrade_options}"
                 f" {self.ctx.all_in_choice}"
@@ -1807,19 +1851,28 @@ class ArchipelagoBot(bot.bot_ai.BotAI):
                 f" {self.ctx.mercenary_highlanders}" # TODO: Possibly rework into unit options
                 f" {self.ctx.war_council_nerfs}"
             )
+            if isinstance(error, Error):
+                sc2_logger.error(error.message)
+                return
             self.update_tech(start_items, kerrigan_level)
             objectives = ""
             if uncollected_objectives:
                 objectives = " ".join(f"{str(objective)}" for objective in uncollected_objectives)
-            banks.send_core_options(
+            error = banks.send_core_options(
                 self.get_resources(start_items),
                 self.get_colors(),
                 objectives,
                 "1"
             )
+            if isinstance(error, Error):
+                sc2_logger.error(error.message)
+                return
             self.last_received_update = len(self.ctx.items_received)
         else:
-            banks.send_ap_messages_from_queue(self.ctx.announcements)
+            error = banks.send_ap_messages_from_queue(self.ctx.announcements)
+            if isinstance(error, Error):
+                sc2_logger.error(error.message)
+                return
             trade_send_string = self.get_trade_units_sent()
             # Message format:
             # <unit1> <unit2> <unit3>...
@@ -1860,10 +1913,13 @@ class ArchipelagoBot(bot.bot_ai.BotAI):
                 self.can_read_game = True
 
             if iteration == 160 and not game_state & 1:
-                banks.send_ap_message([
+                error = banks.send_ap_message([
                     "Warning: Archipelago unable to connect or has lost connection to "
                     "Starcraft 2 (This is likely a map issue)"
                 ])
+                if isinstance(error, Error):
+                    sc2_logger.error(error.message)
+                    return
 
             if banks.update_prompt():
                 self.last_received_update = 0
@@ -1872,14 +1928,20 @@ class ArchipelagoBot(bot.bot_ai.BotAI):
                 current_items = calculate_items(self.ctx)
                 missions_beaten = self.missions_beaten_count()
                 kerrigan_level = get_kerrigan_level(self.ctx, current_items, missions_beaten)
-                self.update_core_options(current_items)
-                self.update_tech(current_items, kerrigan_level)
+                if (error := self.update_core_options(current_items)):
+                    sc2_logger.error(error.message)
+                    return
+                if (error := self.update_tech(current_items, kerrigan_level)):
+                    sc2_logger.error(error.message)
+                    return
                 self.last_received_update = len(self.ctx.items_received)
 
             if game_state & 1:
                 if not self.game_running:
-                    banks.send_ap_message(["Archipelago Connected"])
-                    # print("Archipelago Connected")
+                    error = banks.send_ap_message(["Archipelago Connected"])
+                    if isinstance(error, Error):
+                        sc2_logger.error(error.message)
+                        return
                     self.game_running = True
 
                 if self.can_read_game:
@@ -1919,24 +1981,36 @@ class ArchipelagoBot(bot.bot_ai.BotAI):
 
                     # Send Void Trade results
                     if self.ctx.trade_response is not None and self.trade_reply_cooldown == 0:
-                        banks.send_ap_message([self.ctx.trade_response])
+                        error = banks.send_ap_message([self.ctx.trade_response])
+                        if isinstance(error, Error):
+                            sc2_logger.error(error.message)
+                            return
                         # Wait an arbitrary amount of frames before trying again
                         self.trade_reply_cooldown = 60
                 else:
-                    banks.send_ap_message(["LostConnection - Lost connection to game."])
+                    error = banks.send_ap_message(["LostConnection - Lost connection to game."])
+                    if isinstance(error, Error):
+                        sc2_logger.error(error.message)
+                        return
 
     def get_locations(self) -> int:
         result = banks.read_locations()
+        if isinstance(result, Error):
+            return 0
         if (result.strip()):  # may be "" or " "
             return int(result)
         return 0
 
     def get_trade_units_sent(self) -> str:
         result = banks.read_trade_units()
+        if isinstance(result, Error):
+            return ""
         return result
 
     def get_trade_receive_request(self) -> str:
         result = banks.read_trade_receive_request()
+        if isinstance(result, Error):
+            return ""
         return result
 
     def get_uncollected_objectives(self) -> list[int]:
@@ -2004,16 +2078,16 @@ class ArchipelagoBot(bot.bot_ai.BotAI):
             current_items[SC2Race.ANY][get_item_flag_word(item_names.UPGRADE_RESEARCH_COST)],
         ))
 
-    def update_tech(self, current_items: dict[SC2Race, list[int]], kerrigan_level: int):
-        banks.send_items(
+    def update_tech(self, current_items: dict[SC2Race, list[int]], kerrigan_level: int) -> None | Error[str]:
+        return banks.send_items(
             self.get_terran_tech(current_items),
             self.get_zerg_tech(current_items, kerrigan_level),
             self.get_protoss_tech(current_items),
             self.get_misc_tech(current_items)
         )
 
-    def update_core_options(self, current_items: dict[SC2Race, list[int]]):
-        banks.send_core_options(
+    def update_core_options(self, current_items: dict[SC2Race, list[int]]) -> None | Error[str]:
+        return banks.send_core_options(
             self.get_resources(current_items),
             self.get_colors()
         )
@@ -2134,64 +2208,13 @@ def compute_received_items(ctx: SC2Context) -> collections.Counter[int]:
     return received_items
 
 
-def check_game_install_path() -> bool:
-    # First thing: go to the default location for ExecuteInfo.
-    # An exception for Windows is included because it's very difficult to find ~\Documents if the user moved it.
-    if is_windows:
-        # The next five lines of utterly inscrutable code are brought to you by copy-paste from Stack Overflow.
-        # https://stackoverflow.com/questions/6227590/finding-the-users-my-documents-path/30924555#
-        import ctypes.wintypes
-        CSIDL_PERSONAL = 5  # My Documents
-        SHGFP_TYPE_CURRENT = 0  # Get current, not default value
-
-        buf = ctypes.create_unicode_buffer(ctypes.wintypes.MAX_PATH)
-        ctypes.windll.shell32.SHGetFolderPathW(None, CSIDL_PERSONAL, None, SHGFP_TYPE_CURRENT, buf)
-        documentspath: str = buf.value
-        einfo = str(documentspath / Path("StarCraft II\\ExecuteInfo.txt"))
-    else:
-        einfo = str(bot.paths.get_home() / Path(bot.paths.USERPATH[bot.paths.PF]))
-
-    # Check if the file exists.
-    if os.path.isfile(einfo):
-
-        # Open the file and read it, picking out the latest executable's path.
-        with open(einfo) as f:
-            content = f.read()
-        if content:
-            search_result = re.search(r" = (.*)Versions", content)
-            if not search_result:
-                sc2_logger.warning(f"Found {einfo}, but it was empty. Run SC2 through the Blizzard launcher, "
-                                    "then try again.")
-                return False
-            base = search_result.group(1)
-
-            if os.path.exists(base):
-                executable = bot.paths.latest_executeble(Path(base).expanduser() / "Versions")
-
-                # Finally, check the path for an actual executable.
-                # If we find one, great. Set up the SC2PATH.
-                if os.path.isfile(executable):
-                    sc2_logger.info(f"Found an SC2 install at {base}!")
-                    sc2_logger.debug(f"Latest executable at {executable}.")
-                    os.environ["SC2PATH"] = base
-                    sc2_logger.debug(f"SC2PATH set to {base}.")
-                    return True
-                else:
-                    sc2_logger.warning(f"We may have found an SC2 install at {base}, but couldn't find {executable}.")
-            else:
-                sc2_logger.warning(f"{einfo} pointed to {base}, but we could not find an SC2 install there.")
-    else:
-        sc2_logger.warning(f"Couldn't find {einfo}. Run SC2 through the Blizzard launcher, then try again. "
-                           f"If that fails, please run /set_path with your SC2 install directory.")
-    return False
-
-
 def is_mod_installed_correctly() -> bool:
     """Searches for all required files."""
-    if "SC2PATH" not in os.environ:
-        check_game_install_path()
-    sc2_path: str = os.environ["SC2PATH"]
-    mapdir = sc2_path / Path('Maps/ArchipelagoCampaign')
+    sc2_path = user_paths.get_sc2_install_dir()
+    if isinstance(sc2_path, Error):
+        sc2_logger.warning(sc2_path.message)
+        return False
+    mapdir = Path(sc2_path) / Path('Maps/ArchipelagoCampaign')
     mods = ["ArchipelagoCore", "ArchipelagoPlayer", "ArchipelagoPlayerSuper", "ArchipelagoPatches",
             "ArchipelagoTriggers", "ArchipelagoPlayerWoL", "ArchipelagoPlayerHotS",
             "ArchipelagoPlayerLotV", "ArchipelagoPlayerLotVPrologue", "ArchipelagoPlayerNCO"]
@@ -2239,8 +2262,12 @@ def is_mod_installed_correctly() -> bool:
 
 
 class DllDirectory:
+    """
+    Context manager that sets the DLL search path on Windows and restores it on exit.
+    Setting the new path to `None` restores the default search order.
+    See https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-setdlldirectoryw
+    """
     # Credit to Black Sliver for this code.
-    # More info: https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-setdlldirectoryw
     _old: str | None = None
     _new: str | None = None
 
@@ -2410,6 +2437,7 @@ def is_mod_update_available(owner: str, repo: str, api_version: str, metadata: s
 def get_location_offset(mission_id: int) -> int:
     return SC2WOL_LOC_ID_OFFSET if mission_id <= SC2Mission.ALL_IN.id \
         else (SC2HOTS_LOC_ID_OFFSET - SC2Mission.ALL_IN.id * VICTORY_MODULO)
+
 
 def get_location_id(mission_id: int, objective_id: int) -> int:
     return get_location_offset(mission_id) + mission_id * VICTORY_MODULO + objective_id
