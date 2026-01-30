@@ -100,7 +100,6 @@ def _get_wine_prefix() -> str:
         logger.warning(f"Warning: wine prefix '{result}' does not contain a sc2 install at {sc2_install_path}")
     else:
         return result
-    logger.warning("Warning: could not find a valid wine prefix")
     return ""
 
 
@@ -176,7 +175,6 @@ def _get_sc2_docs_folder() -> str:
     result = os.path.expanduser(f"~/{DOCUMENTS_SC2_DIRNAME}")
     if os.path.isdir(result):
         return result
-    logger.warning(f"Warning: could not find sc2 documents folder at default location: {result}")
     return ""
 
 
@@ -238,29 +236,46 @@ def _get_sc2_install_dir() -> str:
             logger.warning(f"Warning: Value of env:{SC2_INSTALL_ENV_VAR} is not a folder: {result}")
         else:
             return result
-    
+
+
     # Try reading from docs path/ExecuteInfo.txt
-    docs_path = get_sc2_docs_folder()
-    if not isinstance(docs_path, Error):
+    def read_execute_info() -> str:
+        docs_path = get_sc2_docs_folder()
+        if isinstance(docs_path, Error):
+            return ""
         execute_info_path = os.path.join(docs_path, "ExecuteInfo.txt")
-        if os.path.isfile(execute_info_path):
-            with open(execute_info_path, 'rb') as fp:
-                contents = fp.read()
-            if b'executable = ' in contents:
-                contents = contents.split(b'executable = ', 1)[1]
-                if b'Versions' in contents:
-                    contents = contents.split(b'Versions', 1)[0]
-                    result = contents.decode('utf-8')
-                    if not Utils.is_windows:
-                        result = result.replace('\\', '/')
-                    if os.path.isdir(result):
-                        return result
-                    else:
-                        # Note(mm): I would be surprised if this warning ever trips, but better safe than sorry
-                        logger.warning(
-                            f"Executable information in {execute_info_path} "
-                            f"doesn't point to a valid folder: {result}"
-                        )
+        if not os.path.isfile(execute_info_path):
+            return ""
+        with open(execute_info_path, "rb") as fp:
+            contents = fp.read()
+        if b'executable = ' not in contents:
+            return ""
+        contents = contents.split(b'executable = ', 1)[1]
+        if b'Versions' not in contents:
+            return ""
+        contents = contents.split(b'Versions', 1)[0]
+        result = contents.decode("utf-8")
+        if not Utils.is_windows:
+            wine_prefix = get_wine_prefix()
+            if isinstance(wine_prefix, Error):
+                return ""
+            result = result.replace("\\", "/")
+            if len(result) > 2 and result[1:3] == ':/':
+                result = os.path.join(wine_prefix, f"drive_{result[0].lower()}", result[3:])
+        if os.path.isdir(result):
+            return result
+        else:
+            # Note(mm): I would be surprised if this warning ever trips, but better safe than sorry
+            logger.warning(
+                f"Executable information in {execute_info_path} "
+                f"doesn't point to a valid folder: {result}"
+            )
+            return ""
+
+
+    result = read_execute_info()
+    if result and os.path.isdir(result):
+        return result
 
     # Windows default handling
     if Utils.is_windows:
@@ -271,7 +286,6 @@ def _get_sc2_install_dir() -> str:
         return ""
     
     # Linux handling
-    wine_prefix = ""
     wine_prefix = get_wine_prefix()
     if not isinstance(wine_prefix, Error):
         result = os.path.join(wine_prefix, f"drive_c/Program Files (x86)/StarCraft II")
@@ -282,7 +296,6 @@ def _get_sc2_install_dir() -> str:
     result = os.path.expanduser(f"~/Games/StarCraft II")
     if os.path.isdir(result):
         return result
-    logger.warning(f"Warning: could not find sc2 documents folder at default location: {result}")
     return ""
 
 
