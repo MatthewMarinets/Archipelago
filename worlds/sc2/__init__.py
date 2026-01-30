@@ -41,7 +41,6 @@ from worlds.LauncherComponents import components, Component, launch as launch_co
 from .mission_order.presets import sc2_options_presets
 
 logger = logging.getLogger("Starcraft 2")
-VICTORY_MODULO = 100
 
 def launch_client(*args: str):
     from .client import launch

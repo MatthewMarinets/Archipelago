@@ -4,8 +4,8 @@ import logging
 import os
 import queue
 import re
-from .apclient import user_paths
-from .apclient.failable import Error
+from . import user_paths
+from .failable import Error
 
 # Banks are XML files used to communicate with Starcraft 2
 # file names, section names and key names have to match the SC2 trigger implementation
@@ -110,7 +110,7 @@ class SC2Bank:
                 return bank_folder
             path = f"{bank_folder}/{self.file_name}.SC2Bank"
         if not os.path.isfile(path):
-            return
+            return None
         with open(path, "r") as f:
             SECTION_PATTERN = re.compile(r'<Section name="(\w+)">')
             KEY_PATTERN = re.compile(r'<Key name="(\w+)">')
@@ -126,12 +126,12 @@ class SC2Bank:
                     assert not section, f"Encountered section {m.group(1)} while already inside section {section}"
                     section = m.group(1)
                     self.add_section(section)
-                    assert section not in self.sections.items(), f"Duplicate section definition for section {section}"
+                    assert section not in self.sections, f"Duplicate section definition for section {section}"
                 elif (m := KEY_PATTERN.match(line_content)):
                     assert section, "Encountered a key while not in a section"
                     assert not key, f"Encountered key {m.group(1)} while already inside key {key}"
                     key = m.group(1)
-                    assert key not in self.sections[section].items(), f"Duplicate key definition for key {key}"
+                    assert key not in self.sections[section], f"Duplicate key definition for key {key}"
                 elif (m := VALUE_PATTERN.match(line_content)):
                     assert section, "Encountered a value while not in a section"
                     assert key, "Encountered a value while not in a key"
@@ -145,6 +145,7 @@ class SC2Bank:
                     section = ''
                 else:
                     pass
+        return None
 
     def write_file(self) -> None | Error[str]:
         # Write a bank file with the formatting expected from SC2
@@ -174,10 +175,11 @@ class SC2Bank:
             if not os.path.isfile(path):
                 with open(path, "w") as f:
                     f.write('\n'.join(lines))
-                return
+                return None
         # only the messages bank has any chance to hit this
         # at current limits, this would be attempting to send 5000 messages in a single iteration
         logger.info(f"Too many bank backups, cannot write:\n{self}")
+        return None
 
     def remove_entry_from_file(self, key: str) -> None | Error[str]:
         """Remove one Key/Value pair from a bank file"""
@@ -200,14 +202,20 @@ class SC2Bank:
                     deleting = False
                 elif not deleting:
                     f.write(line)
+        return None
 
 
-def file_cleanup() -> None:
+def file_cleanup() -> None | Error[str]:
     # Use at the start of a mission to delete old bank files
     # Locations needs cleanup, others are optional
     bank_folder = user_paths.get_bank_folder()
-    if not isinstance(bank_folder, Error):
-        Path(f"{user_paths.get_bank_folder()}/{BANK_LOCATIONS_FILE_NAME}.SC2Bank").unlink(missing_ok=True)
+    if isinstance(bank_folder, Error):
+        return bank_folder
+    Path(f"{user_paths.get_bank_folder()}/{BANK_CORE_OPTIONS_FILE_NAME}.SC2Bank").unlink(missing_ok=True)
+    Path(f"{user_paths.get_bank_folder()}/{BANK_LOCATIONS_FILE_NAME}.SC2Bank").unlink(missing_ok=True)
+    Path(f"{user_paths.get_bank_folder()}/{BANK_TRADE_RECEIVE_FILE_NAME}.SC2Bank").unlink(missing_ok=True)
+    Path(f"{user_paths.get_bank_folder()}/{BANK_MESSAGES_FILE_NAME}.SC2Bank").unlink(missing_ok=True)
+    return None
 
 
 def send_options(msg: str) -> None | Error[str]:
@@ -223,8 +231,8 @@ def send_options(msg: str) -> None | Error[str]:
 def send_core_options(
     start_resources: str,
     colors: str,
-    uncollected_objectives: str = None,
-    finished_loading: str = None
+    uncollected_objectives: str | None = None,
+    finished_loading: str | None = None
 ) -> None | Error[str]:
     bank = SC2Bank(BANK_CORE_OPTIONS_FILE_NAME)
     bank.add_entry(
@@ -297,6 +305,7 @@ def send_ap_messages_from_queue(message_queue: queue.Queue) -> None | Error[str]
             break
     if messages:
         return send_ap_message(messages)
+    return None
 
 
 def send_ap_message(messages: list[str]) -> None | Error[str]:
@@ -314,9 +323,9 @@ def send_ap_message(messages: list[str]) -> None | Error[str]:
                 )
         if i > 0:
             return bank.write_file()
+    return None
 
 
-# todo(mm)
 def update_prompt() -> bool:
     """Checks to see if the game has requested an update by writing the ArchipelagoUpdate file"""
     bank_folder = user_paths.get_bank_folder()
