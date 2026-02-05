@@ -41,6 +41,7 @@ class MissionClient:
         'update_number',
         'mission_completed',
         'task',
+        'running',
         'ctx',
         'mission_id',
         'process',
@@ -56,6 +57,7 @@ class MissionClient:
         self.update_number: int = -1
         self.mission_completed = False
         self.task: asyncio.Task | None = None
+        self.running = True
         self.ctx = ctx
         self.mission_id = mission_id
         self.process = process
@@ -75,6 +77,11 @@ class MissionClient:
         Does not account for menu time/pause time.
         """
         return (time.time_ns() - self.start_time) / 1_000_000_000
+
+    def close(self) -> None:
+        if self.process.poll() is None:
+            self.process.kill()
+        self.running = False
 
     def do_setup(self) -> None:
         mission = lookup_id_to_mission[self.mission_id]
@@ -138,15 +145,15 @@ class MissionClient:
         self.last_received_update = len(self.ctx.items_received)
 
     async def client_loop(self) -> None:
-        while not self.is_game_closed():
+        while self.running:
             await asyncio.sleep(self.update_period_seconds)
-            await self.on_step()
+            try:
+                await self.on_step()
+            except Exception as ex:
+                logger.error(ex)
 
     async def on_step(self) -> None:
         # @assume setup is done
-        if self.is_game_closed():
-            self.update_period_seconds = 30
-            return
         game_state = 0
         error = banks.send_ap_messages_from_queue(self.ctx.announcements)
         if isinstance(error, Error):
@@ -411,8 +418,28 @@ def launch_mission(ctx: 'SC2Context', mission_id: int) -> subprocess.Popen | Err
         "-displaymode", ("0" if SC2World.settings.game_windowed_mode else "1"),
         "-difficulty", str(difficulty),
     ]
+
+    # Unused but kept around in case we want to take another stab at starting SC2.exe directly
+    # sc2_exe = user_paths.get_sc2_exe_path()
+    # if isinstance(sc2_exe, Error):
+    #     return sc2_exe
+    # temp_dir = tempfile.mkdtemp(prefix="SC2_")
+    # command_line = [
+    #     sc2_exe,
+    #     "-listen", "127.0.0.1",
+    #     "-port", "44063",
+    #     "-dataDir", sc2_install_dir,
+    #     "-tempDir", temp_dir,
+    #     "-run", map_path,
+    #     # Note(mm): displaymode 2 is available for true fullscreen
+    #     "-displaymode", ("0" if SC2World.settings.game_windowed_mode else "1"),
+    #     "-difficulty", str(difficulty),
+    #     '-verbose',
+    # ]
+
     if TRIGDEBUG:
         command_line.append("-trigdebug")
+    working_directory = os.path.join(sc2_install_dir, "Support64")
     if speed != options.GameSpeed.option_default:
         # Note(mm): SC2Switcher accepts speed on a scale of 0~5, the Archipelago option 0 is "default" though
         speed = max(0, speed - 1)
@@ -420,7 +447,7 @@ def launch_mission(ctx: 'SC2Context', mission_id: int) -> subprocess.Popen | Err
     if Utils.is_windows:
         with DllDirectory(None):
             logger.debug(command_line)
-            return subprocess.Popen(command_line)
+            return subprocess.Popen(command_line, cwd=working_directory)
 
     # Linux
     wine = user_paths.get_wine_path()
@@ -436,6 +463,7 @@ def launch_mission(ctx: 'SC2Context', mission_id: int) -> subprocess.Popen | Err
         command_line,
         env=os.environ | {"WINEPREFIX": wine_prefix},
         stderr=subprocess.DEVNULL,
+        cwd=working_directory,
     )
 
 

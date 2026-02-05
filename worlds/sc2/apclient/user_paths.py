@@ -314,14 +314,35 @@ def get_sc2_install_dir() -> str | Error[str]:
     return _sc2_install_dir
 
 
+def _get_sc2_exe_path() -> str | Error[str]:
+    sc2_install_dir = get_sc2_install_dir()
+    if isinstance(sc2_install_dir, Error):
+        return sc2_install_dir
+    candidates = glob.glob(os.path.join(sc2_install_dir, 'Versions', 'Base*', 'SC2_x64.exe'))
+    if not candidates:
+        return Error(f"No SC2_x64.exe present in any subdirectory of {sc2_install_dir}/Versions")
+    sorted_candidates = sorted(candidates)
+    return sorted_candidates[-1]
+
+
+_sc2_exe_path: str | Error[str] | None = None
+def get_sc2_exe_path() -> str | Error[str]:
+    global _sc2_exe_path
+    if _sc2_exe_path is None:
+        _sc2_exe_path = _get_sc2_exe_path()
+    return _sc2_exe_path
+
+
 def reset_cache() -> None:
     global _wine_path
     global _wine_prefix
     global _sc2_install_dir
     global _sc2_docs_folder
     global _sc2_bank_folder
+    global _sc2_exe_path
     _wine_path = None
     _wine_prefix = None
     _sc2_install_dir = None
     _sc2_docs_folder = None
     _sc2_bank_folder = None
+    _sc2_exe_path = None

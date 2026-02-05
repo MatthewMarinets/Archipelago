@@ -614,7 +614,6 @@ class SC2Context(CommonContext):
         self.final_mission_ids: list[int] = [29]
         self.final_locations: list[int] = []
         self.announcements: queue.Queue = queue.Queue()
-        self.sc2_process: subprocess.Popen | None = None
         self.missions_unlocked: bool = False  # allow launching missions ignoring requirements
         self.max_upgrade_level: int = MaxUpgradeLevel.default
         self.generic_upgrade_missions = 0
@@ -1016,8 +1015,8 @@ class SC2Context(CommonContext):
 
     async def shutdown(self) -> None:
         await super(SC2Context, self).shutdown()
-        if self.sc2_process and self.sc2_process.poll() is None:
-            self.sc2_process.kill()
+        if self.mission_client and self.mission_client.process.poll() is None:
+            self.mission_client.close()
 
     async def disconnect(self, allow_autoreconnect: bool = False) -> None:
         self.finished_game = False
@@ -1026,8 +1025,7 @@ class SC2Context(CommonContext):
     def play_mission(self, mission_id: int) -> bool:
         if self.missions_unlocked or is_mission_available(self, mission_id):
             if self.mission_client and not self.mission_client.is_game_closed():
-                sc2_logger.error("Starcraft 2 game is still running")
-                return False
+                self.mission_client.shutdown()
             mission_client = game_client.launch_game_client(self, mission_id)
             if isinstance(mission_client, Error):
                 sc2_logger.error(mission_client.message)

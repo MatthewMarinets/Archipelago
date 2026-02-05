@@ -125,8 +125,8 @@ class SC2Bank:
                 if (m := SECTION_PATTERN.match(line_content)):
                     assert not section, f"Encountered section {m.group(1)} while already inside section {section}"
                     section = m.group(1)
-                    self.add_section(section)
                     assert section not in self.sections, f"Duplicate section definition for section {section}"
+                    self.add_section(section)
                 elif (m := KEY_PATTERN.match(line_content)):
                     assert section, "Encountered a key while not in a section"
                     assert not key, f"Encountered key {m.group(1)} while already inside key {key}"
