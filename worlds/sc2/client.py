@@ -1015,7 +1015,7 @@ class SC2Context(CommonContext):
 
     async def shutdown(self) -> None:
         await super(SC2Context, self).shutdown()
-        if self.mission_client and self.mission_client.process.poll() is None:
+        if self.mission_client:
             self.mission_client.close()
 
     async def disconnect(self, allow_autoreconnect: bool = False) -> None:
@@ -1024,8 +1024,9 @@ class SC2Context(CommonContext):
 
     def play_mission(self, mission_id: int) -> bool:
         if self.missions_unlocked or is_mission_available(self, mission_id):
-            if self.mission_client and not self.mission_client.is_game_closed():
-                self.mission_client.shutdown()
+            if self.mission_client and self.mission_client.check_game_running():
+                sc2_logger.info("Cannot start a mission while the game is still running")
+                return False
             mission_client = game_client.launch_game_client(self, mission_id)
             if isinstance(mission_client, Error):
                 sc2_logger.error(mission_client.message)

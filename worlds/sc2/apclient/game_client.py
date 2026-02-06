@@ -44,7 +44,8 @@ class MissionClient:
         'running',
         'ctx',
         'mission_id',
-        'process',
+        'switcher_process',
+        'sc2_pid',
         'bonuses',
         'trade_reply_cooldown',
         'last_received_update',
@@ -60,7 +61,8 @@ class MissionClient:
         self.running = True
         self.ctx = ctx
         self.mission_id = mission_id
-        self.process = process
+        self.switcher_process = process
+        self.sc2_pid: int | None = None
         self.bonuses = [False for _ in range(MAX_BONUS)]
         self.trade_reply_cooldown: int = 0
         self.last_received_update: int = 0
@@ -68,8 +70,16 @@ class MissionClient:
         self.update_period_seconds = 0.5
         self.start_time = time.time_ns()
 
-    def is_game_closed(self) -> bool:
-        return self.process.poll() is not None
+    def check_game_running(self) -> bool:
+        if not self.running:
+            return False
+        if self.sc2_pid is None:
+            return True
+        self.running = is_pid_running(self.sc2_pid)
+        return self.running
+
+    def is_switcher_process_closed(self) -> bool:
+        return self.switcher_process.poll() is not None
 
     def game_time_seconds(self) -> float:
         """
@@ -79,8 +89,10 @@ class MissionClient:
         return (time.time_ns() - self.start_time) / 1_000_000_000
 
     def close(self) -> None:
-        if self.process.poll() is None:
-            self.process.kill()
+        if self.switcher_process.poll() is None:
+            self.switcher_process.kill()
+        if self.running and self.sc2_pid is not None:
+            kill_pid(self.sc2_pid)
         self.running = False
 
     def do_setup(self) -> None:
@@ -154,6 +166,16 @@ class MissionClient:
 
     async def on_step(self) -> None:
         # @assume setup is done
+        if self.sc2_pid is None:
+            if not self.is_switcher_process_closed():
+                # Still starting up
+                return
+            self.sc2_pid = get_sc2_pid()
+            logger.debug(f"sc2 process ID is {self.sc2_pid}")
+            return
+        elif self.update_number % 10 == 0:
+            if not self.check_game_running():
+                logger.debug("sc2 process exited")
         game_state = 0
         error = banks.send_ap_messages_from_queue(self.ctx.announcements)
         if isinstance(error, Error):
@@ -395,7 +417,7 @@ def launch_game_client(ctx: 'SC2Context', mission_id: int) -> MissionClient | Er
     client = MissionClient(ctx, mission_id, process)
     client.do_setup()
     client.task = asyncio.create_task(client.client_loop())
-    return None
+    return client
 
 
 def launch_mission(ctx: 'SC2Context', mission_id: int) -> subprocess.Popen | Error[str]:
@@ -467,6 +489,11 @@ def launch_mission(ctx: 'SC2Context', mission_id: int) -> subprocess.Popen | Err
     )
 
 
+# ################################################################################################ #
+#     Platform
+# ################################################################################################ #
+
+
 class DllDirectory:
     """
     Context manager that sets the DLL search path on Windows and restores it on exit.
@@ -509,8 +536,88 @@ class DllDirectory:
         return False
 
 
+def get_sc2_pid() -> int | None:
+    if Utils.is_windows:
+        return windows_get_sc2_pid()
+    return linux_get_sc2_pid()
+
+
+def linux_get_sc2_pid() -> int | None:
+    result_bytes = subprocess.run(["ps", "-ef"], stdout=subprocess.PIPE).stdout
+    lines = result_bytes.decode("utf-8").split("\n")
+    for line in lines:
+        if "SC2_x64.exe" not in line:
+            continue
+        parts = [p for p in line.split() if p]
+        # Format: UID, PID, PPID, C, STIME, TTY, TIME, CMD
+        if len(parts) < 2:
+            continue
+        pid_part = parts[1]
+        if not pid_part.isnumeric():
+            continue
+        return int(pid_part)
+    return None
+
+
+def windows_get_sc2_pid() -> int | None:
+    result_bytes = subprocess.check_output(["tasklist"])
+    lines = result_bytes.decode("utf-8").split("\n")
+    for line in lines:
+        if "SC2_x64.exe" not in line:
+            continue
+        parts = [p for p in line.split() if p]
+        # Format: Image Name, PID, Session Name, Session#, Mem Usage
+        if len(parts) < 2:
+            continue
+        pid_part = parts[1]
+        if not pid_part.isnumeric():
+            continue
+        return int(pid_part)
+    return None
+
+
+def is_pid_running(pid: int | None) -> bool:
+    if pid is None:
+        return False
+    if Utils.is_windows:
+        return windows_is_pid_running(pid)
+    return linux_is_pid_running(pid)
+
+
+def windows_is_pid_running(pid: int) -> bool:
+    result_bytes = subprocess.check_output(["tasklist", "/FI", f"PID eq {pid}"])
+    return b"SC2_x64.exe" in result_bytes
+
+
+def linux_is_pid_running(pid: int) -> bool:
+    # Note(mm): ps -q has nonzero returncode if there are no matches
+    proc = subprocess.run(["ps", "-q", str(pid), "-f"], stdout=subprocess.PIPE)
+    result_bytes = proc.stdout
+    return b"SC2_x64.exe" in result_bytes
+
+
+def kill_pid(pid: int | None) -> None:
+    if pid is None:
+        return
+    if Utils.is_windows:
+        windows_kill_pid(pid)
+        return
+    linux_kill_pid(pid)
+
+
+def windows_kill_pid(pid: int) -> None:
+    result = subprocess.run(["taskkill", "/PID", str(pid), "/F"])
+    if result.returncode != 0:
+        logger.warning(f"Could not close sc2 process (PID {pid}). Reason: {result.stdout.decode('utf-8')}")
+
+
+def linux_kill_pid(pid: int) -> None:
+    import signal
+    os.kill(pid, signal.SIGKILL)
+
+
 # ################################################################################################ #
-#     Compat
+#     Compatibility
 # ################################################################################################ #
 
 class CompatItemHolder(NamedTuple):
