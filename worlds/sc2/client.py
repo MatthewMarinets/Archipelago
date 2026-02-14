@@ -575,11 +575,21 @@ class StarcraftClientProcessor(ClientCommandProcessor):
             force_settings_save_on_close()
         sc2_logger.info(f"Windowed mode is: {SC2World.settings.game_windowed_mode}")
 
-    def _cmd_disable_mission_check(self) -> bool:
-        """Disables the check to see if a mission is available to play.  Meant for co-op runs where one player can play
-        the next mission in a chain the other player is doing."""
-        self.ctx.missions_unlocked = True
-        sc2_logger.info("Mission check has been disabled")
+    @mark_raw
+    def _cmd_mission_check(self, enable_or_disable: str = "") -> bool:
+        """
+        If disabled, allows playing missions even if they are not unlocked.
+        """
+        if enable_or_disable.casefold() in ("n", "no", "f", "false", "-", "disable", "disabled"):
+            if (not self.ctx.missions_unlocked) and self.ctx.ui:
+                self.ctx.ui.pending_redraw = True
+            self.ctx.missions_unlocked = True
+            sc2_logger.info("Mission check has been disabled")
+        else:
+            if self.ctx.missions_unlocked and self.ctx.ui:
+                self.ctx.ui.pending_redraw = True
+            self.ctx.missions_unlocked = False
+            sc2_logger.info("Mission check has been enabled")
         return True
 
     @mark_raw
