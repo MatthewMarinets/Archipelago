@@ -158,6 +158,7 @@ class StarcraftClientProcessor(ClientCommandProcessor):
         # without having to branch code from CommonClient
         self.ctx.on_print_json({"data": [{"text": text, "keep_markup": True}]})
 
+    @mark_raw
     def _cmd_difficulty(self, difficulty: str = "") -> bool:
         """Overrides the current difficulty set for the world.  Takes the argument casual, normal, hard, or brutal"""
         arguments = difficulty.split()
@@ -191,6 +192,7 @@ class StarcraftClientProcessor(ClientCommandProcessor):
             self.output("To change the difficulty, add the name of the difficulty after the command.")
             return False
 
+    @mark_raw
     def _cmd_game_speed(self, game_speed: str = "") -> bool:
         """Overrides the current game speed for the world.
          Takes the arguments default, slower, slow, normal, fast, faster"""
@@ -370,20 +372,15 @@ class StarcraftClientProcessor(ClientCommandProcessor):
         return True
 
     @mark_raw
-    def _cmd_option(self, args: str = "") -> None:
+    def _cmd_option(self, option_name: str = "", option_value: str = "") -> None:
         """Sets a Starcraft game option that can be changed after generation. Use "/option list" to see all options."""
 
         # Manually parse arguments so the user doesn't see a stack trace if they provide too many arguments
-        tokens = [t for t in args.split(" ") if t]
-        if len(tokens) > 2:
-            self.output(f"Too many arguments to /option, expected at most 2, got {len(tokens)}")
+        arguments = parse_client_cmd_args(option_name, 2, "/option")
+        if isinstance(arguments, Error):
+            self.output(arguments.message)
             return
-        option_name = ""
-        option_value = ""
-        if tokens:
-            option_name = tokens[0]
-        if len(tokens) > 1:
-            option_value = tokens[1]
+        option_name, option_value = arguments
 
         LOGIC_WARNING = "  *Note changing this may result in logically unbeatable games*\n"
 
@@ -515,8 +512,14 @@ class StarcraftClientProcessor(ClientCommandProcessor):
             # Some options, particularly those affecting scouting, require a redraw
             self.ctx.ui.pending_redraw = True
 
+    @mark_raw
     def _cmd_color(self, faction: str = "", color: str = "") -> None:
-        """Changes the player color for a given faction."""
+        """takes faction, color. Changes the player color for a given faction."""
+        arguments = parse_client_cmd_args(faction, 2, "/color")
+        if isinstance(arguments, Error):
+            self.output(arguments.message)
+            return
+        faction, color = arguments
         player_colors = [
             "White", "Red", "Blue", "Teal",
             "Purple", "Yellow", "Orange", "Green",
@@ -560,11 +563,11 @@ class StarcraftClientProcessor(ClientCommandProcessor):
             self.output(f"Color for {faction} set to " + player_colors[self.ctx.__dict__[var_names[faction]]])
 
     @mark_raw
-    def _cmd_windowed_mode(self, value="") -> None:
+    def _cmd_windowed_mode(self, true_or_false: str = "") -> None:
         """Controls whether sc2 will launch in Windowed mode. Persists across sessions."""
-        if not value:
+        if not true_or_false:
             sc2_logger.info("Use `/windowed_mode [true|false]` to set the windowed mode")
-        elif value.casefold() in ('t', 'true', 'yes', 'y'):
+        elif true_or_false.casefold() in ('t', 'true', 'yes', 'y', '+'):
             SC2World.settings.game_windowed_mode = True
             force_settings_save_on_close()
         else:
@@ -580,7 +583,7 @@ class StarcraftClientProcessor(ClientCommandProcessor):
         return True
 
     @mark_raw
-    def _cmd_set_path(self, path: str = '') -> bool:
+    def _cmd_set_path(self, path: str = "") -> bool:
         """Manually set the SC2 install directory (if the automatic detection fails)."""
         if path:
             SC2World.settings.sc2_install_path = SC2World.settings.Sc2InstallPath(path)
@@ -631,6 +634,23 @@ class StarcraftClientProcessor(ClientCommandProcessor):
             return False
         ctx.data_out_of_date = False
         return True
+
+
+def parse_client_cmd_args(args: str, num_args: int, command_name: str) -> Error[str] | list[str]:
+    """
+    Split arguments by spaces and return as a list.
+    Pads the list with empty strings if too few arguments are given.
+    Returns an error if too many arguments are given.
+    Use this with @mark_raw to make sure the user doesn't see a stack trace if they provide too many args.
+    """
+    result = [t for t in args.split(" ") if t]
+    if len(result) > num_args:
+        return Error(
+            f"Too many arguments provided to {command_name}. Expected {num_args}, got {len(result)}"
+        )
+    while len(result) < num_args:
+        result.append("")
+    return result
 
 
 class SC2JSONtoTextParser(JSONtoTextParser):
