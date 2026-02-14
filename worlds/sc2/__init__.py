@@ -25,7 +25,8 @@ from .options import (
     get_option_value, LocationInclusion, KerriganLevelItemDistribution,
     KerriganPresence, KerriganPrimalStatus, kerrigan_unit_available, StarterUnit, SpearOfAdunPresence,
     get_enabled_campaigns, SpearOfAdunPassiveAbilityPresence, Starcraft2Options,
-    GrantStoryTech, GenericUpgradeResearch, RequiredTactics,
+    GrantStoryTech, GrantStoryLevels,
+    GenericUpgradeResearch, RequiredTactics,
     upgrade_included_names, EnableVoidTrade, FillerItemsDistribution, MissionOrderScouting, option_groups,
     NovaPresence, MissionOrder, VanillaItemsOnly, ExcludeOverpoweredItems,
     is_mission_in_soa_presence,
@@ -163,7 +164,20 @@ class SC2World(World):
         ):
             # check if Nova is used anywhere and just modify the option
             self.options.nova_presence.value.add(NovaPresenceOptions.GHOST_OF_A_CHANCE)
-
+        kerrigan_campaigns = set(self.options.kerrigan_campaigns)
+        kerrigan_build_missions = [
+            mission for mission in self.custom_mission_order.get_used_missions()
+            if MissionFlag.SupportsHero in mission.flags
+            and mission.campaign in kerrigan_campaigns
+        ]
+        if not kerrigan_build_missions:
+            self.logic.kerrigan_items_granted = True
+            self.logic.kerrigan_levels_granted = True
+        else:
+            if self.options.grant_story_tech == GrantStoryTech.option_grant:
+                self.logic.kerrigan_items_granted = True
+            if self.options.grant_story_levels == GrantStoryLevels.option_grant:
+                self.logic.kerrigan_levels_granted = True
 
     def create_items(self) -> None:
         # Starcraft 2-specific item setup:

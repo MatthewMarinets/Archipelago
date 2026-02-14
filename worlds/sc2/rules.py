@@ -51,16 +51,13 @@ class SC2Logic:
         self.advanced_tactics = self.logic_level != RequiredTactics.option_standard
         self.take_over_ai_allies = bool(world and world.options.take_over_ai_allies)
         self.kerrigan_unit_available = (
-            (True if world is None else (world.options.kerrigan_presence.value in kerrigan_unit_available))
-            and SC2Campaign.HOTS in get_enabled_campaigns(world)
-            and SC2Race.ZERG in get_enabled_races(world)
+            world is None or ((world.options.kerrigan_presence.value in kerrigan_unit_available))
         )
         self.kerrigan_levels_per_mission_completed = 0 if world is None else world.options.kerrigan_levels_per_mission_completed.value
         self.kerrigan_levels_per_mission_completed_cap = -1 if world is None else world.options.kerrigan_levels_per_mission_completed_cap.value
         self.kerrigan_total_level_cap = -1 if world is None else world.options.kerrigan_total_level_cap.value
         self.morphling_enabled = False if world is None else (world.options.enable_morphling.value == EnableMorphling.option_true)
         self.grant_story_tech = GrantStoryTech.option_no_grant if world is None else (world.options.grant_story_tech.value)
-        self.story_levels_granted = False if world is None else (world.options.grant_story_levels.value != GrantStoryLevels.option_disabled)
         self.basic_terran_units = get_basic_units(self.logic_level, SC2Race.TERRAN)
         self.basic_zerg_units = get_basic_units(self.logic_level, SC2Race.ZERG)
         self.basic_protoss_units = get_basic_units(self.logic_level, SC2Race.PROTOSS)
@@ -101,6 +98,10 @@ class SC2Logic:
 
         # Must be set externally for accurate logic checking of upgrade level when generic_upgrade_missions is checked
         self.total_mission_count = 1
+
+        # Conditionally changed by the world after finalizing missions
+        self.kerrigan_items_granted = False
+        self.kerrigan_levels_granted = False
 
         # Conditionally set to False by the world after culling items
         self.has_barracks_unit: bool = True
@@ -1146,7 +1147,7 @@ class SC2Logic:
         ), self.player)
 
     def kerrigan_levels(self, state: CollectionState, target: int, story_levels_available=True) -> bool:
-        if (story_levels_available and self.story_levels_granted) or not self.kerrigan_unit_available:
+        if (story_levels_available and self.kerrigan_levels_granted):
             return True  # Levels are granted
         if (
             self.kerrigan_levels_per_mission_completed > 0
@@ -1172,10 +1173,7 @@ class SC2Logic:
         return levels >= target
 
     def basic_kerrigan(self, state: CollectionState, story_tech_available=True) -> bool:
-        if story_tech_available and (
-            self.grant_story_tech == GrantStoryTech.option_grant
-            or not self.kerrigan_unit_available
-        ):
+        if story_tech_available and self.kerrigan_items_granted:
             return True
         # One active ability that can be used to defeat enemies directly
         if not state.has_any(
@@ -1199,10 +1197,7 @@ class SC2Logic:
         return False
 
     def two_kerrigan_actives(self, state: CollectionState, story_tech_available=True) -> bool:
-        if story_tech_available and (
-            self.grant_story_tech == GrantStoryTech.option_grant
-            or not self.kerrigan_unit_available
-        ):
+        if story_tech_available and self.kerrigan_items_granted:
             return True
         return state.count_from_list(item_groups.kerrigan_logic_active_abilities, self.player) >= 2
 
@@ -2397,11 +2392,10 @@ class SC2Logic:
         )
     def zerg_any_units_back_in_the_saddle_requirement(self, state: CollectionState) -> bool:
         return (
-            self.grant_story_tech == GrantStoryTech.option_grant
             # Note(mm): This check isn't necessary as self.kerrigan_levels cover it,
             # and it's not fully desirable in future when we support non-grant story tech + kerriganless.
             # or not self.kerrigan_presence
-            or not self.kerrigan_unit_available
+            self.kerrigan_items_granted
             or state.has_any((
                 # Cases tested by Snarky
                 item_names.KERRIGAN_KINETIC_BLAST,
@@ -2478,7 +2472,7 @@ class SC2Logic:
     def supreme_requirement(self, state: CollectionState) -> bool:
         return (
             self.grant_story_tech == GrantStoryTech.option_grant
-            or not self.kerrigan_unit_available
+            or self.kerrigan_items_granted
             or (self.grant_story_tech == GrantStoryTech.option_allow_substitutes
                 and state.has_any((
                     item_names.KERRIGAN_LEAPING_STRIKE,
@@ -2582,7 +2576,7 @@ class SC2Logic:
             self.kerrigan_levels(state, 70)
             and (
                 self.grant_story_tech == GrantStoryTech.option_grant
-                or not self.kerrigan_unit_available
+                or self.kerrigan_items_granted
                 or (
                     state.has_any((
                         item_names.KERRIGAN_KINETIC_BLAST,
