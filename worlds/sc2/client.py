@@ -501,7 +501,10 @@ class StarcraftClientProcessor(ClientCommandProcessor):
         else:
             self.output(f"Unknown option value '{option_value}'")
         if isinstance(option, ConfigurableSettingInfo):
-            presentable_value = str(SC2World.settings.__dict__[option.setting_name]).lower()
+            presentable_value = str(SC2World.settings.__dict__.get(
+                option.setting_name,
+                Starcraft2Settings.__dict__[option.setting_name])
+            ).lower()
         elif issubclass(option.option_class, coreoptions.Toggle):
             # get_option_name() will return 'yes' and 'no' for Toggles, which looks wrong in the UI
             presentable_value = 'true' if self.ctx.__dict__[option.variable_name] else 'false'
