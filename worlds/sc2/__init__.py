@@ -384,47 +384,47 @@ def pack_hero_presence(presence: dict[SC2Campaign, dict[SC2Race, HeroFlag]]) -> 
     return result
 
 
-def calculate_hero_presence(presence: HeroPresence, heroes: HeroFlag) -> dict[SC2Campaign, dict[SC2Race, HeroFlag]]:
-        races = [race for race in SC2Race if race != SC2Race.ANY]
-        campaigns = [campaign for campaign in SC2Campaign if campaign != SC2Campaign.GLOBAL]
-        kerrigan_flag = HeroFlag.KERRIGAN if HeroOptions.KERRIGAN in heroes else HeroFlag.NONE
-        nova_flag = HeroFlag.NOVA if HeroOptions.NOVA in heroes else HeroFlag.NONE
-        artanis_flag = HeroFlag.ARTANIS if HeroOptions.ARTANIS in heroes else HeroFlag.NONE
-        all_flag = kerrigan_flag | nova_flag | artanis_flag
-        race_flag = {
-            SC2Race.ZERG: kerrigan_flag,
-            SC2Race.TERRAN: nova_flag,
-            SC2Race.PROTOSS: artanis_flag,
-        }
-        result = {campaign: {race: HeroFlag.NONE for race in races} for campaign in campaigns}
-        if presence == HeroPresence.option_anywhere:
-            for campaign in campaigns:
-                for race in races:
-                    result[campaign][race] = all_flag
-        elif presence == HeroPresence.option_same_race:
-            for campaign in campaigns:
-                for race in races:
-                    result[campaign][race] = race_flag[race]
-        elif presence == HeroPresence.option_original_race:
+def calculate_hero_presence(presence: int, heroes: set[str]) -> dict[SC2Campaign, dict[SC2Race, HeroFlag]]:
+    races = [race for race in SC2Race if race != SC2Race.ANY]
+    campaigns = [campaign for campaign in SC2Campaign if campaign != SC2Campaign.GLOBAL]
+    kerrigan_flag = HeroFlag.KERRIGAN if HeroOptions.KERRIGAN in heroes else HeroFlag.NONE
+    nova_flag = HeroFlag.NOVA if HeroOptions.NOVA in heroes else HeroFlag.NONE
+    artanis_flag = HeroFlag.ARTANIS if HeroOptions.ARTANIS in heroes else HeroFlag.NONE
+    all_flag = kerrigan_flag | nova_flag | artanis_flag
+    race_flag = {
+        SC2Race.ZERG: kerrigan_flag,
+        SC2Race.TERRAN: nova_flag,
+        SC2Race.PROTOSS: artanis_flag,
+    }
+    result = {campaign: {race: HeroFlag.NONE for race in races} for campaign in campaigns}
+    if presence == HeroPresence.option_anywhere:
+        for campaign in campaigns:
             for race in races:
-                result[SC2Campaign.HOTS][race] = kerrigan_flag
-                result[SC2Campaign.WOL][race] = nova_flag
-                result[SC2Campaign.NCO][race] = nova_flag
-                result[SC2Campaign.LOTV][race] = artanis_flag
-                result[SC2Campaign.PROLOGUE][race] = artanis_flag
-                result[SC2Campaign.PROPHECY][race] = artanis_flag
-        elif presence == HeroPresence.option_vanilla:
-            result[SC2Campaign.HOTS][SC2Race.ZERG] = kerrigan_flag
-            result[SC2Campaign.NCO][SC2Race.TERRAN] = nova_flag
-        elif presence == HeroPresence.option_vanilla_raceswap:
+                result[campaign][race] = all_flag
+    elif presence == HeroPresence.option_same_race:
+        for campaign in campaigns:
             for race in races:
-                result[SC2Campaign.HOTS][race] = race_flag[race]
-                result[SC2Campaign.NCO][race] = race_flag[race]
-        elif presence == HeroPresence.option_vanilla_original_race:
-            for race in races:
-                result[SC2Campaign.HOTS][race] = kerrigan_flag
-                result[SC2Campaign.NCO][race] = nova_flag
-        return result
+                result[campaign][race] = race_flag[race]
+    elif presence == HeroPresence.option_original_race:
+        for race in races:
+            result[SC2Campaign.HOTS][race] = kerrigan_flag
+            result[SC2Campaign.WOL][race] = nova_flag
+            result[SC2Campaign.NCO][race] = nova_flag
+            result[SC2Campaign.LOTV][race] = artanis_flag
+            result[SC2Campaign.PROLOGUE][race] = artanis_flag
+            result[SC2Campaign.PROPHECY][race] = artanis_flag
+    elif presence == HeroPresence.option_vanilla:
+        result[SC2Campaign.HOTS][SC2Race.ZERG] = kerrigan_flag
+        result[SC2Campaign.NCO][SC2Race.TERRAN] = nova_flag
+    elif presence == HeroPresence.option_vanilla_raceswap:
+        for race in races:
+            result[SC2Campaign.HOTS][race] = race_flag[race]
+            result[SC2Campaign.NCO][race] = race_flag[race]
+    elif presence == HeroPresence.option_vanilla_original_race:
+        for race in races:
+            result[SC2Campaign.HOTS][race] = kerrigan_flag
+            result[SC2Campaign.NCO][race] = nova_flag
+    return result
 
 
 def _get_column_display(index: int, single_row_layout: bool) -> str:
