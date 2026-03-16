@@ -1754,39 +1754,43 @@ class SC2Logic:
             self.terran_common_unit(state)
             or self.basic_hero(state, SC2Mission.THE_OUTLAWS, False)
         )
+
     def terran_outlaws_requirement(self, state: CollectionState) -> bool:
         return (
             self.terran_common_unit(state)
             and self.basic_or_no_hero(state, SC2Mission.THE_OUTLAWS, False)
         )
+
     def zerg_outlaws_early_requirement(self, state: CollectionState) -> bool:
         return (
             self.zerg_common_unit(state)
             or self.basic_hero(state, SC2Mission.THE_OUTLAWS_Z, False)
         )
+
     def zerg_outlaws_requirement(self, state: CollectionState) -> bool:
         return (
             self.zerg_common_unit(state)
             and self.basic_or_no_hero(state, SC2Mission.THE_OUTLAWS_Z, False)
         )
+
     def protoss_outlaws_early_requirement(self, state: CollectionState) -> bool:
         return (
             self.protoss_common_unit(state)
             or self.basic_hero(state, SC2Mission.THE_OUTLAWS_P, False)
         )
+
     def protoss_outlaws_requirement(self, state: CollectionState) -> bool:
         return (
             self.protoss_common_unit(state)
             and self.basic_or_no_hero(state, SC2Mission.THE_OUTLAWS_P, False)
         )
-    
-
 
     def terran_zero_hour_early_requirement(self, state: CollectionState) -> bool:
         return (
             self.terran_common_unit(state)
             or self.basic_hero(state, SC2Mission.ZERO_HOUR, False)
         )
+
     def terran_zero_hour_stage_2_requirement(self, state: CollectionState) -> bool:
         return (
             self.terran_common_unit(state)
@@ -1806,6 +1810,7 @@ class SC2Logic:
             self.zerg_common_unit(state)
             or self.basic_hero(state, SC2Mission.ZERO_HOUR_Z, False)
         )
+
     def zerg_zero_hour_requirement(self, state: CollectionState) -> bool:
         return (
             self.zerg_common_unit(state)
@@ -2349,19 +2354,22 @@ class SC2Logic:
         Rescuing in The Moebius Factor
         """
         return (
-            state.has_any((
+            self.advanced_tactics
+            or state.has_any((
                 item_names.MEDIVAC, item_names.HERCULES, item_names.RAVEN, item_names.VIKING
             ), self.player)
-            or self.advanced_tactics
         )
 
     def zerg_moebius_factor_can_rescue(self, state: CollectionState) -> bool:
-        return state.has_any((
-            item_names.YGGDRASIL,
-            item_names.OVERLORD_VENTRAL_SACS,
-            item_names.NYDUS_WORM,
-            item_names.BULLFROG,
-        ), self.player)
+        return (
+            self.advanced_tactics
+            or state.has_any((
+                item_names.YGGDRASIL,
+                item_names.OVERLORD_VENTRAL_SACS,
+                item_names.NYDUS_WORM,
+                item_names.BULLFROG,
+            ), self.player)
+        )
 
     def protoss_moebius_factor_can_rescue(self, state: CollectionState) -> bool:
         return self.advanced_tactics or state.has(item_names.WARP_PRISM, self.player)
@@ -2752,7 +2760,7 @@ class SC2Logic:
             # Tested by THE EV, "facetank with Kerrigan and stutter step to the end with >10s left"
             # > have to lure the first group of Zerg in the 2nd timed section into the first room of the second area
             # > (with the heal box) so you can kill them before the timer starts.
-            # 
+            #
             # phaneros: Technically possible without the levels, but adding them in for safety margin and to hopefully
             # make generation force this branch less often
             or (state.has_any((item_names.KERRIGAN_HEROIC_FORTITUDE, item_names.KERRIGAN_INFEST_BROODLINGS), self.player)
@@ -3086,7 +3094,7 @@ class SC2Logic:
 
     def protoss_ghosts_in_the_fog_requirement(self, state: CollectionState) -> bool:
         return self.protoss_competent_comp(state) and self.protoss_mineral_dump(state)
-    
+
     def protoss_ghosts_in_the_fog_east_rock_formation(self, state: CollectionState) -> bool:
         return self.protoss_mineral_dump(state) and self.protoss_can_attack_behind_chasm(state)
 
@@ -3094,6 +3102,8 @@ class SC2Logic:
         """
         Able to shoot by a long range or from air to claim the rock formation separated by a chasm
         """
+        # Note(mm): It's possible to just float a building over and produce on the other side, or SCV drop.
+        # Leaving this rule in place for now in case a potential future speedrun location gets implemented.
         return (
             state.has_any((
                 item_names.MEDIVAC,
@@ -3108,12 +3118,14 @@ class SC2Logic:
                 item_names.SHOCK_DIVISION,
                 item_names.SKY_FURY,
             ), self.player)
-            or state.has_all({item_names.VALKYRIE, item_names.VALKYRIE_FLECHETTE_MISSILES}, self.player)
-            or state.has_all({item_names.RAVEN, item_names.RAVEN_HUNTER_SEEKER_WEAPON}, self.player)
+            or state.has_all((item_names.VALKYRIE, item_names.VALKYRIE_FLECHETTE_MISSILES), self.player)
+            or state.has_all((item_names.RAVEN, item_names.RAVEN_HUNTER_SEEKER_WEAPON), self.player)
             or (
-                state.has_any({item_names.LIBERATOR, item_names.EMPERORS_GUARDIAN}, self.player)
+                state.has_any((item_names.LIBERATOR, item_names.EMPERORS_GUARDIAN), self.player)
                 and state.has(item_names.LIBERATOR_RAID_ARTILLERY, self.player)
             )
+            or state.has_all((item_names.REAPER, item_names.REAPER_JET_PACK_OVERDRIVE), self.player)
+            or state.has_all((item_names.WARHOUND, item_names.WARHOUND_JUMP_JETS), self.player)
             or (
                 self.advanced_tactics
                 and (
@@ -3140,15 +3152,22 @@ class SC2Logic:
 
     def zerg_can_grab_ghosts_in_the_fog_east_rock_formation(self, state: CollectionState) -> bool:
         return (
-            state.has_any({item_names.MUTALISK, item_names.INFESTED_BANSHEE, item_names.OVERLORD_VENTRAL_SACS, item_names.INFESTOR}, self.player)
+            state.has_any((
+                item_names.MUTALISK,
+                item_names.INFESTED_BANSHEE,
+                item_names.OVERLORD_VENTRAL_SACS,
+                item_names.YGGDRASIL,
+                item_names.BULLFROG,
+            ), self.player)
             or (self.morph_devourer(state) and state.has(item_names.DEVOURER_PRESCIENT_SPORES, self.player))
             or (self.morph_guardian(state) and state.has(item_names.GUARDIAN_PRIMAL_ADAPTATION, self.player))
             or ((self.morph_guardian(state) or self.morph_brood_lord(state)) and self.zerg_basic_air_to_air(state))
             or (
                 self.advanced_tactics
                 and (
-                    state.has_any({item_names.INFESTED_SIEGE_BREAKERS, item_names.INFESTED_DUSK_WINGS}, self.player)
+                    state.has_any((item_names.INFESTED_SIEGE_BREAKERS, item_names.INFESTED_DUSK_WINGS), self.player)
                     or (state.has(item_names.HUNTERLING, self.player) and self.zerg_basic_air_to_air(state))
+                    or state.has_all((item_names.INFESTOR, item_names.INFESTOR_INFESTED_TERRAN), self.player)
                 )
             )
         )
