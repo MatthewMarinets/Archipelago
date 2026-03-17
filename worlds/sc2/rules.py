@@ -2216,7 +2216,7 @@ class SC2Logic:
 
     def terran_great_train_robbery_kill_team(self, state: CollectionState) -> bool:
         return (
-            self.terran_great_train_robbery_kill_team(state)
+            self.terran_great_train_robbery_train_stopper(state)
             and (self.advanced_tactics or self.terran_common_unit(state))
         )
 
