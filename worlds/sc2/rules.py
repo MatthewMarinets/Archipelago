@@ -207,6 +207,15 @@ class SC2Logic:
     def terran_common_unit(self, state: CollectionState) -> bool:
         return state.has_any(self.basic_terran_units, self.player)
 
+    def terran_common_unit_or_advanced_tactics(self, state: CollectionState) -> bool:
+        return self.advanced_tactics or self.terran_common_unit(state)
+
+    def terran_common_unit_moderate_aa(self, state: CollectionState) -> bool:
+        return self.terran_common_unit(state) and self.terran_moderate_anti_air(state)
+
+    def terran_common_unit_competent_aa(self, state: CollectionState) -> bool:
+        return self.terran_common_unit(state) and self.terran_competent_anti_air(state)
+
     def terran_early_tech(self, state: CollectionState) -> bool:
         """
         Basic combat unit that can be deployed quickly from mission start
@@ -484,15 +493,18 @@ class SC2Logic:
         vehicle_weapons = self.weapon_armor_upgrade_count(item_names.PROGRESSIVE_TERRAN_VEHICLE_WEAPON, state)
         vehicle_armor = self.weapon_armor_upgrade_count(item_names.PROGRESSIVE_TERRAN_VEHICLE_ARMOR, state)
         if vehicle_weapons >= upgrade_level and vehicle_armor >= upgrade_level:
-            strong_vehicle = state.has_any({item_names.THOR, item_names.SIEGE_TANK}, self.player)
-            light_frontline = state.has_any(
-                {item_names.MARINE, item_names.DOMINION_TROOPER, item_names.HELLION, item_names.VULTURE}, self.player
-            ) or state.has_all({item_names.REAPER, item_names.REAPER_RESOURCE_EFFICIENCY}, self.player)
+            strong_vehicle = state.has_any((item_names.THOR, item_names.SIEGE_TANK), self.player)
+            light_frontline = (
+                state.has_any((
+                    item_names.MARINE, item_names.DOMINION_TROOPER, item_names.HELLION, item_names.VULTURE,
+                ), self.player)
+                or state.has_all((item_names.REAPER, item_names.REAPER_RESOURCE_EFFICIENCY), self.player)
+            )
             if strong_vehicle and light_frontline:
                 return True
             # Mech with Healing
-            vehicle = state.has_any({item_names.GOLIATH, item_names.WARHOUND}, self.player)
-            micro_gas_vehicle = self.advanced_tactics and state.has_any({item_names.DIAMONDBACK, item_names.CYCLONE}, self.player)
+            vehicle = state.has_any((item_names.GOLIATH, item_names.WARHOUND), self.player)
+            micro_gas_vehicle = self.advanced_tactics and state.has_any((item_names.DIAMONDBACK, item_names.CYCLONE), self.player)
             if self.terran_sustainable_mech_heal(state) and (vehicle or (micro_gas_vehicle and light_frontline)):
                 return True
         return False
@@ -1500,48 +1512,45 @@ class SC2Logic:
     def protoss_common_unit_competent_anti_air(self, state: CollectionState) -> bool:
         return self.protoss_common_unit(state) and self.protoss_competent_anti_air(state)
 
-    def protoss_competent_anti_air(self, state: CollectionState) -> bool:
+    def protoss_deathball_or_advanced_competent_comp(self, state: CollectionState) -> bool:
         return (
-            state.has_any(
-                {
-                    item_names.STALKER,
-                    item_names.SLAYER,
-                    item_names.INSTIGATOR,
-                    item_names.ADEPT,
-                    item_names.VOID_RAY,
-                    item_names.DESTROYER,
-                    item_names.TEMPEST,
-                    item_names.CALADRIUS,
-                },
-                self.player,
-            )
+            self.protoss_deathball(state)
+            or (self.advanced_tactics and self.protoss_competent_comp(state))
+        )
+
+    def protoss_competent_anti_air(self, state: CollectionState) -> bool:
+        aa_immortals = (
+            state.has_any((item_names.IMMORTAL, item_names.ANNIHILATOR), self.player)
+            and state.has(item_names.IMMORTAL_ANNIHILATOR_ADVANCED_TARGETING, self.player)
+        )
+        return (
+            state.has_any((
+                item_names.STALKER,
+                item_names.SLAYER,
+                item_names.INSTIGATOR,
+                item_names.ADEPT,
+                item_names.VOID_RAY,
+                item_names.DESTROYER,
+                item_names.TEMPEST,
+                item_names.CALADRIUS,
+            ), self.player)
             or (
                 (
-                    state.has_any(
-                        {
-                            item_names.PHOENIX,
-                            item_names.MIRAGE,
-                            item_names.CORSAIR,
-                            item_names.CARRIER,
-                        },
-                        self.player,
-                    )
+                    state.has_any((
+                        item_names.PHOENIX,
+                        item_names.MIRAGE,
+                        item_names.CORSAIR,
+                        item_names.CARRIER,
+                    ), self.player)
                     or state.has_all((item_names.SKIRMISHER, item_names.SKIRMISHER_PEER_CONTEMPT), self.player)
                 )
                 and (
                     state.has_any((item_names.SCOUT, item_names.MISTWING, item_names.DRAGOON), self.player)
-                    or state.has_all({item_names.WRATHWALKER, item_names.WRATHWALKER_AERIAL_TRACKING}, self.player)
-                    or (
-                        state.has_any({item_names.IMMORTAL, item_names.ANNIHILATOR}, self.player)
-                        and state.has(item_names.IMMORTAL_ANNIHILATOR_ADVANCED_TARGETING, self.player)
-                    )
+                    or state.has_all((item_names.WRATHWALKER, item_names.WRATHWALKER_AERIAL_TRACKING), self.player)
+                    or aa_immortals
                 )
             )
-            or (
-                self.advanced_tactics
-                and state.has_any({item_names.IMMORTAL, item_names.ANNIHILATOR}, self.player)
-                and state.has(item_names.IMMORTAL_ANNIHILATOR_ADVANCED_TARGETING, self.player)
-            )
+            or (self.advanced_tactics and aa_immortals)
         )
 
     def protoss_has_blink(self, state: CollectionState) -> bool:
@@ -2919,6 +2928,76 @@ class SC2Logic:
             )
         )
 
+    def terran_domination_requirement(self, state: CollectionState) -> bool:
+        return (
+            self.terran_common_unit(state)
+            and (
+                self.advanced_tactics
+                or self.terran_basic_anti_air(state)
+            )
+        )
+
+    def protoss_domination_requirement(self, state: CollectionState) -> bool:
+        return (
+            self.protoss_common_unit(state)
+            and (
+                self.advanced_tactics
+                or self.protoss_basic_anti_air(state)
+            )
+        )
+
+    def terran_waking_the_ancient_requirement(self, state: CollectionState) -> bool:
+        return (
+            self.terran_common_unit(state)
+            and (
+                self.terran_competent_anti_air(state)
+                or (self.advanced_tactics
+                    and self.terran_basic_anti_air(state)
+                )
+            )
+        )
+
+    def terran_waking_the_ancient_flawless(self, state: CollectionState) -> bool:
+        return (
+            self.terran_competent_comp(state)
+            and (
+                # Fast unit
+                state.has_any((
+                    item_names.DOMINION_TROOPER,
+                    item_names.BANSHEE,
+                    item_names.VULTURE,
+                    item_names.HELLION,
+                    item_names.DIAMONDBACK,
+                    item_names.WARHOUND,
+                    item_names.CYCLONE,
+                ), self.player)
+                or state.has_all((
+                    item_names.VALKYRIE, item_names.VALKYRIE_FLECHETTE_MISSILES,
+                ), self.player)
+                or (
+                    state.has(item_names.WRAITH, self.player)
+                    and state.has_any((
+                        item_names.WRAITH_ADVANCED_LASER_TECHNOLOGY,
+                        item_names.WRAITH_RESOURCE_EFFICIENCY,
+                    ), self.player)
+                )
+            )
+        )
+
+    def terran_crucible_requirement(self, state: CollectionState) -> bool:
+        return (
+            self.terran_common_unit(state)
+            and self.terran_defense_rating(state, True, True) >= 5
+            and self.terran_competent_anti_air(state)
+        )
+
+    def protoss_crucible_requirement(self, state: CollectionState) -> bool:
+        return (
+            self.protoss_common_unit(state)
+            and self.protoss_defense_rating(state, True) >= 5
+            and self.protoss_moderate_anti_air(state)
+        )
+
     def supreme_requirement(self, state: CollectionState) -> bool:
         return (
             self.grant_story_tech == GrantStoryTech.option_grant
@@ -2945,12 +3024,48 @@ class SC2Logic:
     def terran_infested_garrison_claimer(self, state: CollectionState) -> bool:
         return state.has_any((item_names.GHOST, item_names.SPECTRE, item_names.EMPERORS_SHADOW), self.player)
 
+    def terran_infested_requirement(self, state: CollectionState) -> bool:
+        return (
+            self.terran_common_unit_moderate_aa(state)
+            and (
+                self.advanced_tactics
+                or self.terran_infested_garrison_claimer(state)
+            )
+        )
+
+    def terran_infested_far_garrison(self, state: CollectionState) -> bool:
+        return (
+            self.terran_competent_comp(state)
+            and (
+                self.advanced_tactics
+                or self.terran_infested_garrison_claimer(state)
+            )
+        )
+
     def protoss_infested_garrison_claimer(self, state: CollectionState) -> bool:
         return (
             state.has_any((
                 item_names.HIGH_TEMPLAR, item_names.SIGNIFIER, item_names.ASCENDANT,
             ), self.player)
             or self.protoss_can_merge_dark_archon(state)
+        )
+
+    def protoss_infested_requirement(self, state: CollectionState) -> bool:
+        return (
+            self.protoss_common_unit_basic_aa(state)
+            and (
+                self.advanced_tactics
+                or self.protoss_infested_garrison_claimer(state)
+            )
+        )
+
+    def protoss_infested_far_garrison(self, state: CollectionState) -> bool:
+        return (
+            self.protoss_competent_comp(state)
+            and (
+                self.advanced_tactics
+                or self.protoss_infested_garrison_claimer(state)
+            )
         )
 
     def terran_hand_of_darkness_requirement(self, state: CollectionState) -> bool:
