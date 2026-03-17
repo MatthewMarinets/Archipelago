@@ -160,7 +160,7 @@ class SC2World(World):
         # TODO (Snarky): Make work with Hero Presence
         # if (
         #     NovaPresenceOptions.GHOST_OF_A_CHANCE_AUTO in self.options.nova_presence
-        #     and MissionFlag.Nova in self.custom_mission_order.get_used_flags() 
+        #     and MissionFlag.Nova in self.custom_mission_order.get_used_flags()
         #     and not self.logic.nova_items_granted
         # ):
         #     # check if Nova is used anywhere and just modify the option
@@ -481,7 +481,7 @@ def create_and_flag_explicit_item_locks_and_excludes(world: SC2World) -> list[Fi
         if max_count and count > max_count:
             return max_count
         return count
-    
+
     auto_excludes = Counter({item_name: 1 for item_name in item_groups.legacy_items})
     if world.options.exclude_overpowered_items.value == ExcludeOverpoweredItems.option_true:
         for item_name in item_groups.overpowered_items:
@@ -722,6 +722,7 @@ def flag_mission_based_item_excludes(world: SC2World, item_list: list[FilterItem
     remove_kerrigan_items = (len(kerrigan_missions) <= 1) and not kerrigan_build_missions
     remove_nova_items =  (len(nova_missions) <= 1) and not nova_build_missions
     remove_artanis_items = (len(artanis_missions) <= 1) and not artanis_build_missions
+    assert world.logic is not None
     world.logic.kerrigan_items_granted = remove_kerrigan_items
     world.logic.kerrigan_levels_granted = remove_kerrigan_items
     world.logic.nova_items_granted = remove_nova_items
@@ -942,7 +943,7 @@ def flag_start_unit(world: SC2World, item_list: list[FilterItem], starter_unit: 
         #         support_item.flags |= ItemFilterFlags.StartInventory
         #     if item_names.NOVA_JUMP_SUIT_MODULE in possible_starter_items:
         #         possible_starter_items[item_names.NOVA_JUMP_SUIT_MODULE].flags |= ItemFilterFlags.StartInventory
-        # if ( MissionFlag.Nova in first_mission.flags 
+        # if ( MissionFlag.Nova in first_mission.flags
         #     and (
         #         MissionFlag.Terran in first_mission.flags and NovaPresenceOptions.NCO_TERRAN in world.options.nova_presence
         #             or MissionFlag.Zerg in first_mission.flags and NovaPresenceOptions.NCO_ZERG in world.options.nova_presence
@@ -1184,7 +1185,7 @@ def fill_pool_with_kerrigan_levels(world: SC2World, item_pool: list[StarcraftIte
         or (world.options.grant_story_levels and not world.logic.kerrigan_build_missions)
     ):
         return
-    
+
     def add_kerrigan_level_items(level_amount: int, item_amount: int):
         name = f"{level_amount} Kerrigan Level"
         if level_amount > 1:

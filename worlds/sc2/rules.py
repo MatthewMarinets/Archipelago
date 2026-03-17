@@ -216,6 +216,9 @@ class SC2Logic:
     def terran_common_unit_competent_aa(self, state: CollectionState) -> bool:
         return self.terran_common_unit(state) and self.terran_competent_anti_air(state)
 
+    def terran_competent_comp_or_advanced_tactics(self, state: CollectionState) -> bool:
+        return self.advanced_tactics or self.terran_competent_comp(state)
+
     def terran_early_tech(self, state: CollectionState) -> bool:
         """
         Basic combat unit that can be deployed quickly from mission start
@@ -508,6 +511,9 @@ class SC2Logic:
             if self.terran_sustainable_mech_heal(state) and (vehicle or (micro_gas_vehicle and light_frontline)):
                 return True
         return False
+
+    def terran_competent_comp_wa2(self, state: CollectionState) -> bool:
+        return self.terran_competent_comp(state, 2)
 
     def terran_mineral_dump(self, state: CollectionState) -> bool:
         """
@@ -908,9 +914,13 @@ class SC2Logic:
 
     def zerg_basic_air_to_air(self, state: CollectionState) -> bool:
         return (
-            state.has_any(
-                {item_names.MUTALISK, item_names.CORRUPTOR, item_names.BROOD_QUEEN, item_names.SCOURGE, item_names.INFESTED_LIBERATOR}, self.player
-            )
+            state.has_any((
+                item_names.MUTALISK,
+                item_names.CORRUPTOR,
+                item_names.BROOD_QUEEN,
+                item_names.SCOURGE,
+                item_names.INFESTED_LIBERATOR,
+            ), self.player)
             or self.morph_devourer(state)
             or self.morph_viper(state)
             or (self.morph_guardian(state) and state.has(item_names.GUARDIAN_PRIMAL_ADAPTATION, self.player))
@@ -981,6 +991,7 @@ class SC2Logic:
         )
 
     def zerg_competent_comp(self, state: CollectionState) -> bool:
+        """Solid zerg comp. Does not include AA"""
         if self.zerg_army_weapon_armor_upgrade_min_level(state) < 2:
             return False
         advanced = self.advanced_tactics
@@ -1023,8 +1034,14 @@ class SC2Logic:
     def zerg_common_unit_competent_aa(self, state: CollectionState) -> bool:
         return self.zerg_common_unit(state) and self.zerg_competent_anti_air(state)
 
+    def zerg_common_unit_or_advanced_tactics(self, state: CollectionState) -> bool:
+        return self.advanced_tactics or self.zerg_common_unit(state)
+
     def zerg_competent_comp_basic_aa(self, state: CollectionState) -> bool:
         return self.zerg_competent_comp(state) and self.zerg_basic_anti_air(state)
+
+    def zerg_competent_comp_moderate_aa(self, state: CollectionState) -> bool:
+        return self.zerg_competent_comp(state) and self.zerg_moderate_anti_air(state)
 
     def zerg_competent_comp_competent_aa(self, state: CollectionState) -> bool:
         return self.zerg_competent_comp(state) and self.zerg_competent_anti_air(state)
@@ -2191,6 +2208,18 @@ class SC2Logic:
             )
         )
 
+    def terran_great_train_robbery_requirement(self, state: CollectionState) -> bool:
+        return (
+            self.terran_great_train_robbery_train_stopper(state)
+            and self.terran_basic_anti_air(state)
+        )
+
+    def terran_great_train_robbery_kill_team(self, state: CollectionState) -> bool:
+        return (
+            self.terran_great_train_robbery_kill_team(state)
+            and (self.advanced_tactics or self.terran_common_unit(state))
+        )
+
     def zerg_great_train_robbery_train_stopper(self, state: CollectionState) -> bool:
         """
         Ability to deal with trains (moving target with a lot of HP)
@@ -2256,6 +2285,15 @@ class SC2Logic:
                         )
                     )
                 )
+            )
+        )
+
+    def terran_cutthroat_victory(self, state: CollectionState) -> bool:
+        return (
+            self.terran_common_unit(state)
+            and (
+                self.advanced_tactics
+                or self.terran_moderate_anti_air(state)
             )
         )
 
@@ -2632,6 +2670,12 @@ class SC2Logic:
     def protoss_in_utter_darkness_requirement(self, state: CollectionState) -> bool:
         return self.protoss_competent_comp(state) and self.protoss_defense_rating(state, True) >= 4
 
+    def terran_belly_of_the_beast_requirement(self, state: CollectionState) -> bool:
+        return (
+            self.advanced_tactics
+            or self.marine_medic_firebat_upgrade(state)
+        )
+
     def terran_all_in_requirement(self, state: CollectionState) -> bool:
         """
         All-in
@@ -2744,6 +2788,15 @@ class SC2Logic:
     # ###################################################################################################### #
     # region HotS Missions ................................................................................. #
     # ###################################################################################################### #
+
+    def zerg_lab_rat_requirement(self, state: CollectionState) -> bool:
+        return (
+            self.zerg_common_unit(state)
+            or state.has_any((item_names.ZERGLING, item_names.PYGALISK), self.player)
+        )
+
+    def zerg_lab_rat_progress(self, state: CollectionState) -> bool:
+        return self.advanced_tactics or self.zerg_lab_rat_requirement(state)
 
     def zerg_any_units_back_in_the_saddle_requirement(self, state: CollectionState) -> bool:
         return (
@@ -2946,6 +2999,13 @@ class SC2Logic:
             )
         )
 
+    def zerg_fire_in_the_sky_requirement(self, state: CollectionState) -> bool:
+        return (
+            self.zerg_competent_comp(state)
+            and self.zerg_moderate_anti_air(state)
+            and self.spread_creep(state)
+        )
+
     def terran_waking_the_ancient_requirement(self, state: CollectionState) -> bool:
         return (
             self.terran_common_unit(state)
@@ -2984,11 +3044,27 @@ class SC2Logic:
             )
         )
 
+    def zerg_waking_the_ancient_easy_pools(self, state: CollectionState) -> bool:
+        return (
+            self.zerg_common_unit(state)
+            and (
+                self.zerg_competent_anti_air(state)
+                or (self.advanced_tactics and self.zerg_basic_anti_air(state))
+            )
+        )
+
     def terran_crucible_requirement(self, state: CollectionState) -> bool:
         return (
             self.terran_common_unit(state)
             and self.terran_defense_rating(state, True, True) >= 5
             and self.terran_competent_anti_air(state)
+        )
+
+    def zerg_crucible_requirement(self, state: CollectionState) -> bool:
+        return (
+            self.zerg_common_unit(state)
+            and self.zerg_defense_rating(state, True, True) >= 7
+            and self.zerg_competent_anti_air(state)
         )
 
     def protoss_crucible_requirement(self, state: CollectionState) -> bool:
@@ -3042,6 +3118,13 @@ class SC2Logic:
             )
         )
 
+    def zerg_infested_science_facilities(self, state: CollectionState) -> bool:
+        return (
+            self.zerg_common_unit(state)
+            and self.zerg_moderate_anti_air(state)
+            and self.spread_creep(state)
+        )
+
     def protoss_infested_garrison_claimer(self, state: CollectionState) -> bool:
         return (
             state.has_any((
@@ -3080,6 +3163,15 @@ class SC2Logic:
 
     def protoss_hand_of_darkness_requirement(self, state: CollectionState) -> bool:
         return self.protoss_competent_comp(state) and self.protoss_power_rating(state) >= 6
+
+    def zerg_phantoms_of_the_void_requirement(self, state: CollectionState) -> bool:
+        return (
+            self.zerg_competent_comp(state)
+            and (
+                self.zerg_competent_anti_air(state)
+                or (self.advanced_tactics and self.zerg_moderate_anti_air(state))
+            )
+        )
 
     def terran_planetfall_requirement(self, state: CollectionState) -> bool:
         return self.terran_beats_protoss_deathball(state) and self.terran_power_rating(state) >= 8
@@ -3489,6 +3581,9 @@ class SC2Logic:
 
     def protoss_temple_of_unification_requirement(self, state: CollectionState) -> bool:
         return self.protoss_competent_comp(state) and self.protoss_power_rating(state) >= 10
+
+    def protoss_temple_of_unification_bases(self, state: CollectionState) -> bool:
+        return self.protoss_temple_of_unification_requirement(state) and self.protoss_deathball(state)
 
     def protoss_harbinger_of_oblivion_requirement(self, state: CollectionState) -> bool:
         return (
@@ -4035,6 +4130,13 @@ class SC2Logic:
                 )
                 or (self.advanced_tactics and self.spread_creep(state, False) and self.zerg_big_monsters(state))
             ) and self.zerg_competent_comp(state)
+
+    def zerg_amons_fall_full_clear(self, state: CollectionState) -> bool:
+        return (
+            self.amons_fall_requirement(state)
+            and self.spread_creep(state, False)
+            and self.zerg_big_monsters(state)
+        )
 
     def terran_amons_fall_requirement(self, state: CollectionState) -> bool:
         if not self.terran_very_hard_mission_weapon_armor_level(state):
