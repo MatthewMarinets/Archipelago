@@ -4294,7 +4294,7 @@ class SC2Logic:
             or (HeroFlag.ARTANIS in presence and self.sudden_strike_artanis(state))
         )
 
-    def sudden_strike_requirement(self, state: CollectionState) -> bool:
+    def terran_sudden_strike_requirement(self, state: CollectionState) -> bool:
         presence = self.get_hero_flag(SC2Mission.SUDDEN_STRIKE)
         if presence != HeroFlag.NONE:
             # one of the heroes is active
@@ -4312,6 +4312,9 @@ class SC2Logic:
                 and (self.terran_cliffjumper(state) or state.has(item_names.BANSHEE, self.player))
                 and self.terran_defense_rating(state, True, False) >= 5
             )
+
+    def terran_sudden_strike_requirement_or_advanced_tactics(self, state: CollectionState) -> bool:
+        return self.terran_sudden_strike_requirement(state) or self.advanced_tactics
 
     def zerg_sudden_strike_requirement(self, state: CollectionState) -> bool:
         presence = self.get_hero_flag(SC2Mission.SUDDEN_STRIKE_Z)

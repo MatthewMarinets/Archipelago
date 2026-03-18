@@ -4849,41 +4849,42 @@ def get_locations(world: Optional["SC2World"]) -> Tuple[LocationData, ...]:
             "Victory",
             SC2NCO_LOC_ID_OFFSET + 200,
             LocationType.VICTORY,
-            logic.sudden_strike_requirement,
+            logic.terran_sudden_strike_requirement,
         ),
         make_location_data(
             SC2Mission.SUDDEN_STRIKE.mission_name,
             "Research Center",
             SC2NCO_LOC_ID_OFFSET + 201,
             LocationType.VANILLA,
-            logic.sudden_strike_requirement,
+            logic.terran_sudden_strike_requirement,
         ),
         make_location_data(
             SC2Mission.SUDDEN_STRIKE.mission_name,
             "Weaponry Labs",
             SC2NCO_LOC_ID_OFFSET + 202,
             LocationType.VANILLA,
-            logic.sudden_strike_requirement,
+            logic.terran_sudden_strike_requirement,
         ),
         make_location_data(
             SC2Mission.SUDDEN_STRIKE.mission_name,
             "Brutalisk",
             SC2NCO_LOC_ID_OFFSET + 203,
             LocationType.EXTRA,
-            logic.sudden_strike_requirement,
+            logic.terran_sudden_strike_requirement,
         ),
         make_location_data(
             SC2Mission.SUDDEN_STRIKE.mission_name,
             "Gas Pickups",
             SC2NCO_LOC_ID_OFFSET + 204,
             LocationType.EXTRA,
+            logic.terran_sudden_strike_requirement_or_advanced_tactics,
         ),
         make_location_data(
             SC2Mission.SUDDEN_STRIKE.mission_name,
             "Protect Buildings",
             SC2NCO_LOC_ID_OFFSET + 205,
             LocationType.CHALLENGE,
-            logic.sudden_strike_requirement,
+            logic.terran_sudden_strike_requirement,
             flags=LocationFlag.PREVENTATIVE,
         ),
         make_location_data(
@@ -4892,7 +4893,7 @@ def get_locations(world: Optional["SC2World"]) -> Tuple[LocationData, ...]:
             SC2NCO_LOC_ID_OFFSET + 206,
             LocationType.MASTERY,
             lambda state: (
-                logic.sudden_strike_requirement(state)
+                logic.terran_sudden_strike_requirement(state)
                 and logic.terran_competent_comp(state)
                 and logic.terran_base_trasher(state)
                 and logic.terran_power_rating(state) >= 8
@@ -13846,6 +13847,7 @@ def get_locations(world: Optional["SC2World"]) -> Tuple[LocationData, ...]:
             "Gas Pickups",
             SC2_RACESWAP_LOC_ID_OFFSET + 15104,
             LocationType.EXTRA,
+            logic.zerg_sudden_strike_requirement,
         ),
         make_location_data(
             SC2Mission.SUDDEN_STRIKE_Z.mission_name,
