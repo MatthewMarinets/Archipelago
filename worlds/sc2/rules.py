@@ -1734,6 +1734,13 @@ class SC2Logic:
             return True
         return False
 
+    def protoss_competent_comp_wa2(self, state: CollectionState) -> bool:
+        return (
+            self.protoss_competent_comp(state)
+            # todo(mm): Make this unit-specific within the competent comp function tree
+            and self.protoss_army_weapon_armor_upgrade_min_level(state) >= 2
+        )
+
     def protoss_deathball(self, state: CollectionState) -> bool:
         return (
             self.protoss_common_unit(state)
@@ -3196,14 +3203,39 @@ class SC2Logic:
         else:
             return self.zerg_competent_comp(state) and self.zerg_competent_anti_air(state) and self.zerg_very_hard_mission_weapon_armor_level(state)
 
+    def zerg_the_reckoning_odin_speedrun(self, state: CollectionState) -> bool:
+        return (
+            self.zerg_the_reckoning_requirement(state)
+            and (
+                self.kerrigan_items_granted
+                or (
+                    self.kerrigan_levels(state, 50, False)
+                    and state.has_any(item_groups.kerrigan_logic_ultimates, self.player)
+                )
+            )
+            and self.zerg_power_rating(state) >= 10
+        )
+
     def terran_the_reckoning_requirement(self, state: CollectionState) -> bool:
         return self.terran_very_hard_mission_weapon_armor_level(state) and self.terran_base_trasher(state)
+
+    def terran_the_reckoning_odin_speedrun(self, state: CollectionState) -> bool:
+        return self.terran_the_reckoning_requirement(state) and self.terran_power_rating(state) >= 10
 
     def protoss_the_reckoning_requirement(self, state: CollectionState) -> bool:
         return (
             self.protoss_very_hard_mission_weapon_armor_level(state)
             and self.protoss_deathball(state)
             and (not self.take_over_ai_allies or (self.terran_competent_comp(state) and self.terran_very_hard_mission_weapon_armor_level(state)))
+        )
+
+    def protoss_the_reckoning_odin_speedrun(self, state: CollectionState) -> bool:
+        return (
+            self.protoss_the_reckoning_requirement(state)
+            and (
+                self.protoss_fleet(state)
+                or self.protoss_power_rating(state) >= 10
+            )
         )
 
     # endregion HotS Missions
@@ -3273,6 +3305,21 @@ class SC2Logic:
 
     def protoss_dark_whispers_zerg_base(self, state: CollectionState) -> bool:
         return self.protoss_deathball(state) and (self.protoss_power_rating(state) >= 6)
+
+    def terran_dark_whispers_zerg_base(self, state: CollectionState) -> bool:
+        return (
+            self.terran_competent_comp(state)
+            and self.terran_base_trasher(state)
+            and self.terran_power_rating(state) >= 6
+        )
+
+    def zerg_dark_whispers_zerg_base(self, state: CollectionState) -> bool:
+        return (
+            self.zerg_competent_comp(state)
+            and self.zerg_moderate_anti_air(state)
+            and self.zerg_base_buster(state)
+            and self.zerg_power_rating(state) >= 6
+        )
 
     def protoss_can_attack_behind_chasm(self, state: CollectionState) -> bool:
         return (
@@ -3469,7 +3516,6 @@ class SC2Logic:
             and self.basic_or_no_hero(state, SC2Mission.SKY_SHIELD)
         )
 
-
     def protoss_brothers_in_arms_requirement(self, state: CollectionState) -> bool:
         return (self.protoss_common_unit(state) and self.protoss_anti_armor_anti_air(state) and self.protoss_hybrid_counter(state)) or (
             self.take_over_ai_allies
@@ -3485,6 +3531,19 @@ class SC2Logic:
                     and self.terran_bio_heal(state)
                 )
             )
+        )
+
+    def protoss_brothers_in_arms_speedrun(self, state: CollectionState) -> bool:
+        return (
+            self.protoss_brothers_in_arms_requirement(state)
+            and self.protoss_deathball(state)
+            and self.protoss_power_rating(state) >= 8
+        )
+
+    def terran_brothers_in_arms_speedrun(self, state: CollectionState) -> bool:
+        return (
+            self.terran_base_trasher(state)
+            and self.terran_power_rating(state) >= 8
         )
 
     def zerg_brothers_in_arms_requirement(self, state: CollectionState) -> bool:
@@ -3506,6 +3565,13 @@ class SC2Logic:
             )
         )
 
+    def zerg_brothers_in_arms_speedrun(self, state: CollectionState) -> bool:
+        return (
+            self.zerg_brothers_in_arms_requirement(state)
+            and self.zerg_base_buster(state)
+            and self.zerg_power_rating(state) >= 8
+        )
+
     def protoss_amons_reach_requirement(self, state: CollectionState) -> bool:
         return self.protoss_common_unit_anti_light_air(state) and self.protoss_basic_splash(state) and self.protoss_power_rating(state) >= 7
 
@@ -3517,6 +3583,23 @@ class SC2Logic:
             and self.protoss_defense_rating(state, False) >= 8
         )
 
+    def protoss_last_stand_1p5_billion(self, state: CollectionState) -> bool:
+        return (
+            self.protoss_last_stand_requirement(state)
+            and (
+                state.has_all((
+                    item_names.KHAYDARIN_MONOLITH,
+                    item_names.PHOTON_CANNON,
+                    item_names.SHIELD_BATTERY,
+                ), self.player)
+                or state.has_any((
+                    item_names.SOA_SOLAR_LANCE,
+                    item_names.SOA_DEPLOY_FENIX,
+                ), self.player)
+            )
+            and self.protoss_defense_rating(state, False) >= 13
+        )
+
     def terran_last_stand_requirement(self, state: CollectionState) -> bool:
         return (
             self.terran_common_unit(state)
@@ -3526,6 +3609,12 @@ class SC2Logic:
             and state.has_any({item_names.VIKING, item_names.BATTLECRUISER}, self.player)
             and self.terran_defense_rating(state, True, False) >= 10
             and self.terran_army_weapon_armor_upgrade_min_level(state) >= 2
+        )
+
+    def terran_last_stand_1p5_billion(self, state: CollectionState) -> bool:
+        return (
+            self.terran_last_stand_requirement(state)
+            and self.terran_defense_rating(state, True, True) >= 13
         )
 
     def zerg_last_stand_requirement(self, state: CollectionState) -> bool:
@@ -3626,10 +3715,20 @@ class SC2Logic:
             and self.zerg_power_rating(state) >= 6
         )
 
+    def protoss_unsealing_the_past_requirement(self, state: CollectionState) -> bool:
+        return (
+            self.protoss_deathball(state)
+            and self.protoss_power_rating(state) >= 6
+        )
+
     def protoss_unsealing_the_past_ledge_requirement(self, state: CollectionState) -> bool:
         return (
-            state.has_any((item_names.COLOSSUS, item_names.WRATHWALKER), self.player)
-            or self.protoss_can_attack_behind_chasm(state)
+            self.protoss_unsealing_the_past_requirement(state)
+            and (
+                self.advanced_tactics
+                or state.has_any((item_names.COLOSSUS, item_names.WRATHWALKER), self.player)
+                or self.protoss_can_attack_behind_chasm(state)
+            )
         )
 
     def terran_unsealing_the_past_requirement(self, state: CollectionState) -> bool:
@@ -4316,6 +4415,14 @@ class SC2Logic:
     def terran_sudden_strike_requirement_or_advanced_tactics(self, state: CollectionState) -> bool:
         return self.terran_sudden_strike_requirement(state) or self.advanced_tactics
 
+    def terran_sudden_strike_zerg_base(self, state: CollectionState) -> bool:
+        return (
+            self.terran_sudden_strike_requirement(state)
+            and self.terran_competent_comp(state)
+            and self.terran_base_trasher(state)
+            and self.terran_power_rating(state) >= 8
+        )
+
     def zerg_sudden_strike_requirement(self, state: CollectionState) -> bool:
         presence = self.get_hero_flag(SC2Mission.SUDDEN_STRIKE_Z)
         if presence != HeroFlag.NONE:
@@ -4332,6 +4439,13 @@ class SC2Logic:
                 and self.zerg_defense_rating(state, True, False) >= 5
             )
 
+    def zerg_sudden_strike_zerg_base(self, state: CollectionState) -> bool:
+        return (
+            self.zerg_sudden_strike_requirement(state)
+            and self.zerg_base_buster(state)
+            and self.zerg_power_rating(state) >= 8
+        )
+
     def protoss_sudden_strike_requirement(self, state: CollectionState) -> bool:
         presence = self.get_hero_flag(SC2Mission.SUDDEN_STRIKE_P)
         if presence != HeroFlag.NONE:
@@ -4347,6 +4461,13 @@ class SC2Logic:
                 and self.protoss_competent_comp(state)
                 and self.protoss_defense_rating(state,True) >= 5
             )
+
+    def protoss_sudden_strike_zerg_base(self, state: CollectionState) -> bool:
+        return (
+            self.protoss_sudden_strike_requirement(state)
+            and self.protoss_deathball(state)
+            and self.protoss_power_rating(state) >= 6
+        )
 
     def terran_enemy_intelligence_garrisonable_unit(self, state: CollectionState) -> bool:
         """
