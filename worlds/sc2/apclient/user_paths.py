@@ -16,7 +16,6 @@ WINE_PREFIX_TO_SC2_INSTALL = "drive_c/Program Files (x86)/StarCraft II"
 DOCUMENTS_SC2_DIRNAME = f"Documents/{SC2_DIRNAME}"
 BANKS_DIRNAME = "Banks"
 BACKUP_DIRNAME = "backup"
-INVALID_BACKUP_DIRNAME = "Backup"
 
 WINE_ENV_VAR = "WINE"
 WINE_PREFIX_ENV_VAR = "WINEPREFIX"
@@ -203,31 +202,6 @@ def _get_bank_folder() -> str | Error[str]:
         return Error(f"Encountered a file instead of a folder at Banks folder location: {result}")
     if not os.path.isdir(result):
         os.makedirs(result)
-    if not Utils.is_windows:
-        # On linux, a pre-existing lowercase-b backup folder can mess with the communication,
-        # as the game will try to communicate from that folder while the client uses the capitalized one.
-        # Check if the lowercase folder exists, and if it does, move the contents to the capitalized folder
-        # and delete it.
-        backup_folder = os.path.join(result, BACKUP_DIRNAME)
-        invalid_backup_folder = os.path.join(result, INVALID_BACKUP_DIRNAME)
-        if os.path.isfile(backup_folder):
-            os.remove(backup_folder)
-        if os.path.isfile(invalid_backup_folder):
-            os.remove(invalid_backup_folder)
-        elif os.path.isdir(invalid_backup_folder):
-            if not os.path.isdir(backup_folder):
-                os.mkdir(backup_folder)
-            contents = glob.glob(os.path.join(invalid_backup_folder, '*'))
-            for source in contents:
-                target = os.path.join(backup_folder, os.path.basename(source))
-                if os.path.exists(target):
-                    # The user has done something truly cursed, with the same-name backup file in multiple
-                    # different backup folders of different capitalizations. Just give up and pick our target
-                    # file as the winner, deleting the other one. I have no regrets.
-                    os.remove(source)
-                else:
-                    os.rename(source, target)
-            os.rmdir(invalid_backup_folder)
     return result
 
 
