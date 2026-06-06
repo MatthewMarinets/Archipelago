@@ -15,6 +15,9 @@ SC2_DIRNAME = "StarCraft II"
 WINE_PREFIX_TO_SC2_INSTALL = "drive_c/Program Files (x86)/StarCraft II"
 DOCUMENTS_SC2_DIRNAME = f"Documents/{SC2_DIRNAME}"
 BANKS_DIRNAME = "Banks"
+# Note(mm): The case here is important; filepaths are case-sensitive on Linux, but the game searches for a
+# path case-insensitively, preferring "backup". So setting "Backup" here when "backup" already exists leads
+# to communication failures.
 BACKUP_DIRNAME = "backup"
 
 WINE_ENV_VAR = "WINE"
