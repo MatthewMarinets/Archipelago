@@ -27,8 +27,8 @@ ITEM_NAME_ANNOTATIONS = {
     item_names.PREDATOR:         "(Factory)",
     item_names.HERCULES:         "(Starport)",
 
-    item_names.HERC:             "(Barracks)",
     item_names.DOMINION_TROOPER: "(Barracks)",
+    item_names.HERC:             "(Barracks)",
     item_names.WIDOW_MINE:       "(Factory)",
     item_names.CYCLONE:          "(Factory)",
     item_names.WARHOUND:         "(Factory)",
@@ -36,8 +36,8 @@ ITEM_NAME_ANNOTATIONS = {
     item_names.VALKYRIE:         "(Starport)",
 
     item_names.SON_OF_KORHAL:         "(Elite Barracks)",
-    item_names.AEGIS_GUARD:           "(Elite Barracks)",
     item_names.FIELD_RESPONSE_THETA:  "(Elite Barracks)",
+    item_names.AEGIS_GUARD:           "(Elite Barracks)",
     item_names.EMPERORS_SHADOW:       "(Elite Barracks)",
     item_names.BULWARK_COMPANY:       "(Elite Factory)",
     item_names.SHOCK_DIVISION:        "(Elite Factory)",
