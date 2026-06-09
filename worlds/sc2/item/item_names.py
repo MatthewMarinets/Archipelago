@@ -36,7 +36,7 @@ CYCLONE          = "Cyclone"
 WARHOUND         = "Warhound"
 LIBERATOR        = "Liberator"
 VALKYRIE         = "Valkyrie"
-# Elites
+# Royal Guard
 SON_OF_KORHAL        = "Son of Korhal"
 FIELD_RESPONSE_THETA = "Field Response Theta"
 AEGIS_GUARD          = "Aegis Guard"
