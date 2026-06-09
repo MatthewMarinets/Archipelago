@@ -55,7 +55,7 @@ bracketless_duplicates = set(_shortened_names)
 del _shortened_names
 
 # All items get sorted into their data type
-for item, data in item_tables.get_full_item_list().items():
+for item, data in item_tables.item_table.items():
     # Items get assigned to their flaggroup's display type
     item_name_groups.setdefault(data.type.display_name, []).append(item)
     # Items with a bracket get a short-hand name group for ease of use in YAMLs
