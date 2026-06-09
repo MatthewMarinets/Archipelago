@@ -37,7 +37,7 @@ HERC             = "HERC"
 WARHOUND         = "Warhound"
 DOMINION_TROOPER = "Dominion Trooper"
 # Elites
-PRIDE_OF_AUGUSTRGRAD = "Pride of Augustgrad"
+PRIDE_OF_AUGUSTGRAD  = "Pride of Augustgrad"
 SKY_FURY             = "Sky Fury"
 SHOCK_DIVISION       = "Shock Division"
 BLACKHAMMER          = "Blackhammer"

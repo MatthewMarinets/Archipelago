@@ -104,7 +104,7 @@ item_table = {
         ItemData(24 + SC2WOL_ITEM_ID_OFFSET, TerranItemType.Unit_2, 4, SC2Race.TERRAN,
                  classification=ItemClassification.progression),
     # Elites, currently disabled for balance
-    item_names.PRIDE_OF_AUGUSTRGRAD:
+    item_names.PRIDE_OF_AUGUSTGRAD:
         ItemData(50 + SC2WOL_ITEM_ID_OFFSET, TerranItemType.Unit, 28, SC2Race.TERRAN,
                  classification=ItemClassification.progression),
     item_names.SKY_FURY:

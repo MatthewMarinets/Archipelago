@@ -171,7 +171,7 @@ item_descriptions = {
         General-purpose infantry. Can be outfitted with a B-2 High-Cal LMG, effective against all units.
         Can equip other weapons for different combat situations, if available.
     """),
-    item_names.PRIDE_OF_AUGUSTRGRAD: "Powerful Royal Guard warship.",
+    item_names.PRIDE_OF_AUGUSTGRAD: "Powerful Royal Guard warship.",
     item_names.SKY_FURY: inspect.cleandoc("""
         Durable Royal Guard support flyer. Loaded with strong anti-capital air missiles.
         Can switch into Assault Mode to attack ground units.

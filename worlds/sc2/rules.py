@@ -280,7 +280,7 @@ class SC2Logic:
             item_names.NIGHT_HAWK,
             item_names.EMPERORS_GUARDIAN,
             item_names.NIGHT_WOLF,
-            item_names.PRIDE_OF_AUGUSTRGRAD,
+            item_names.PRIDE_OF_AUGUSTGRAD,
         ), self.player)
 
     def terran_competent_ground_to_air(self, state: CollectionState) -> bool:
@@ -344,7 +344,7 @@ class SC2Logic:
                     item_names.BRYNHILDS,
                     item_names.BATTLECRUISER,
                     item_names.JACKSONS_REVENGE,
-                    item_names.PRIDE_OF_AUGUSTRGRAD,
+                    item_names.PRIDE_OF_AUGUSTGRAD,
                     item_names.RAVEN,
                     # Buildings
                     item_names.MISSILE_TURRET,
@@ -405,7 +405,7 @@ class SC2Logic:
                 and (
                     state.has_any((
                         item_names.WIDOW_MINE,
-                        item_names.PRIDE_OF_AUGUSTRGRAD,
+                        item_names.PRIDE_OF_AUGUSTGRAD,
                         item_names.BLACKHAMMER,
                         item_names.EMPERORS_SHADOW,
                         item_names.EMPERORS_GUARDIAN,
@@ -5245,7 +5245,7 @@ class SC2Logic:
                         item_names.SKY_FURY,
                         item_names.NIGHT_WOLF,
                         item_names.NIGHT_HAWK,
-                        item_names.PRIDE_OF_AUGUSTRGRAD,
+                        item_names.PRIDE_OF_AUGUSTGRAD,
                     ), self.player)
                     or state.has_all((item_names.LIBERATOR, item_names.LIBERATOR_RAID_ARTILLERY), self.player)
                     or state.has_all((item_names.EMPERORS_GUARDIAN, item_names.LIBERATOR_RAID_ARTILLERY), self.player)

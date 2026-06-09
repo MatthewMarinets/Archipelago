@@ -261,13 +261,13 @@ item_name_groups[ItemGroupNames.FACTORY_UNITS] = factory_units = (factory_wa_gro
 starport_wa_group = [
     item_names.WRAITH, item_names.VIKING, item_names.BANSHEE,
     item_names.BATTLECRUISER, item_names.RAVEN_HUNTER_SEEKER_WEAPON,
-    item_names.LIBERATOR, item_names.VALKYRIE, item_names.PRIDE_OF_AUGUSTRGRAD, item_names.SKY_FURY,
+    item_names.LIBERATOR, item_names.VALKYRIE, item_names.PRIDE_OF_AUGUSTGRAD, item_names.SKY_FURY,
     item_names.EMPERORS_GUARDIAN, item_names.NIGHT_HAWK, item_names.NIGHT_WOLF,
 ]
 item_name_groups[ItemGroupNames.STARPORT_UNITS] = starport_units = [
     item_names.MEDIVAC, item_names.WRAITH, item_names.VIKING, item_names.BANSHEE,
     item_names.BATTLECRUISER, item_names.HERCULES, item_names.SCIENCE_VESSEL, item_names.RAVEN,
-    item_names.LIBERATOR, item_names.VALKYRIE, item_names.PRIDE_OF_AUGUSTRGRAD, item_names.SKY_FURY,
+    item_names.LIBERATOR, item_names.VALKYRIE, item_names.PRIDE_OF_AUGUSTGRAD, item_names.SKY_FURY,
     item_names.EMPERORS_GUARDIAN, item_names.NIGHT_HAWK, item_names.NIGHT_WOLF,
 ]
 item_name_groups[ItemGroupNames.TERRAN_MERCENARIES] = terran_mercenaries = [
@@ -338,7 +338,7 @@ item_name_groups[ItemGroupNames.TERRAN_ROYAL_GUARD_UNITS] = [
     item_names.BULWARK_COMPANY,
     item_names.SHOCK_DIVISION, item_names.BLACKHAMMER,
     # Elite Starport
-    item_names.PRIDE_OF_AUGUSTRGRAD, item_names.SKY_FURY,
+    item_names.PRIDE_OF_AUGUSTGRAD, item_names.SKY_FURY,
     item_names.NIGHT_HAWK, item_names.EMPERORS_GUARDIAN,
     item_names.NIGHT_WOLF,
 ]
@@ -591,7 +591,7 @@ item_name_groups[ItemGroupNames.COOP_MENGSK_UNITS] = [
     item_names.EMPERORS_SHADOW,
     item_names.SHOCK_DIVISION,
     item_names.BLACKHAMMER,
-    item_names.PRIDE_OF_AUGUSTRGRAD,
+    item_names.PRIDE_OF_AUGUSTGRAD,
     item_names.SKY_FURY,
     item_names.DOMINION_TROOPER,
     item_names.MEDIVAC,  # Imperial Intercessor

@@ -46,7 +46,7 @@ ITEM_NAME_ANNOTATIONS = {
     item_names.NIGHT_HAWK:            "(Elite Starport)",
     item_names.NIGHT_WOLF:            "(Elite Starport)",
     item_names.EMPERORS_GUARDIAN:     "(Elite Starport)",
-    item_names.PRIDE_OF_AUGUSTRGRAD:  "(Elite Starport)",
+    item_names.PRIDE_OF_AUGUSTGRAD:   "(Elite Starport)",
 
     item_names.WAR_PIGS:              "(Terran Mercenary)",
     item_names.DEVIL_DOGS:            "(Terran Mercenary)",
