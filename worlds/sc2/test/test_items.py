@@ -48,7 +48,11 @@ class TestItems(unittest.TestCase):
         """
         Checks if Weapon/Armor upgrade level is correctly set to all Weapon/Armor upgrade items.
         """
-        weapon_armor_upgrades = [item for item in item_tables.item_table if item_tables.get_item_table()[item].type in item_tables.upgrade_item_types]
+        weapon_armor_upgrades = [
+            item
+            for item, item_data in item_tables.item_table.items()
+            if item_data.type in item_tables.upgrade_item_types
+        ]
 
         for weapon_armor_upgrade in weapon_armor_upgrades:
             self.assertEqual(item_tables.item_table[weapon_armor_upgrade].quantity, item_tables.WEAPON_ARMOR_UPGRADE_MAX_LEVEL)

@@ -2213,9 +2213,6 @@ key_item_table.update(numbered_progressive_keys)
 key_item_table.update(special_keys)
 item_table.update(key_item_table)
 
-def get_item_table():
-    return item_table
-
 
 basic_units = {
     SC2Race.TERRAN: {
