@@ -443,13 +443,13 @@ def _get_target_missions(term: str) -> set[int]:
             raise ValueError(f"Mission pool term \"{term}\" did not resolve to any specific mission or mission group.")
 
 
-def _resolve_heroes(option_value: Union[str, List[str]]) -> List[str]:
+def _resolve_heroes(option_value: str | list[str]) -> list[str]:
     if type(option_value) == str:
         heroes = [option_value]
     else:
         heroes = option_value
 
-    resolved: List[str] = []
+    resolved: list[str] = []
     for hero in heroes:
         formatted_hero = str(hero).casefold()
         if formatted_hero not in HERO_OPTION_VALUES:
