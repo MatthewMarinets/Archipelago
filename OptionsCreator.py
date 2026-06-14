@@ -29,8 +29,10 @@ import webbrowser
 import re
 from urllib.parse import urlparse
 from worlds.AutoWorld import AutoWorldRegister, World
-from Options import (Option, Toggle, TextChoice, Choice, FreeText, NamedRange, Range, OptionSet, OptionList,
-                     OptionCounter, Visibility, get_option_groups)
+from Options import (
+    Option, Toggle, TextChoice, Choice, FreeText, NamedRange, Range, OptionSet, OptionList,
+    OptionCounter, Visibility, get_option_groups
+)
 
 
 def validate_url(x):
@@ -563,6 +565,30 @@ class OptionsCreator(ThemedApp):
 
         return option_base
 
+    @staticmethod
+    def create_description_box(description: str) -> Widget:
+        # Create a fixed-size description box, with height estimated based off the description length
+        APPROX_CHARACTERS_PER_LINE = 80
+        description_lines = [line.replace('\n', ' ') for line in description.split('\n\n')]
+        formatted_description = '\n\n'.join(description_lines)
+        description_height = dp(19) * (
+            len(description_lines) - 1  # Paragraph breaks
+            + sum(
+                (len(line) + APPROX_CHARACTERS_PER_LINE - 1) // APPROX_CHARACTERS_PER_LINE
+                for line in description_lines)  # Content lines
+        )
+        description_anchor = MDBoxLayout(
+            orientation="vertical",
+            size_hint_y=None,
+            height=description_height,
+            padding=[0, 0, dp(3), dp(3)]
+        )
+        description_textbox = MDLabel(
+            text=formatted_description,
+        )
+        description_anchor.add_widget(description_textbox)
+        return description_anchor
+
     def create_options_panel(self, world_button: WorldButton):
         self.option_layout.clear_widgets()
         self.options.clear()
@@ -601,7 +627,7 @@ class OptionsCreator(ThemedApp):
             expansion_box.do_scroll_x = False
             groups = get_option_groups(cls, Visibility.simple_ui)
 
-            for group, options in groups.items():
+            for group, (options, description) in groups.items():
                 if not options:
                     continue  # Game Options can be empty if every other option is in another group
                     # Can also have an option group of options that should not render on simple ui
@@ -622,6 +648,8 @@ class OptionsCreator(ThemedApp):
                                                         spacing=dp(3))
                 group_item.add_widget(group_header)
                 group_item.add_widget(group_content)
+                if description:
+                    group_content.add_widget(self.create_description_box(description))
                 group_box = ScrollBox()
                 group_box.layout.orientation = "vertical"
                 group_box.layout.spacing = dp(3)
