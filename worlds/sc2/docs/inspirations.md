@@ -20,9 +20,9 @@ This doc is not expected to be complete.
 
 #### Marine
 * Combat Shield -- vanilla WoL and melee upgrade
-* Mag-rail Munition -- vanilla NCO technology
+* Laser Targeting System -- vanilla NCO technology
+* Magrail Munition -- vanilla NCO technology
 * Medpack -- see @medpack
-* Optimized Logistics -- vanilla NCO technology
 * Optimized Logistics -- vanilla NCO technology
 * Stimpack -- vanilla WoL and melee upgrade
 
@@ -69,6 +69,7 @@ This doc is not expected to be complete.
 * Resource Efficiency / Bargain Bin Prices -- copied from Ghost RE
 
 #### HERC
+Based off the melee LotV beta unit; also appears in NCO 6 Flashpoint
 * Juggernaut Plating -- inspired by Firebat Juggernaut Plating
 * Kinetic Foam -- inspired by Marauder Kinetic Foam
 
@@ -118,9 +119,11 @@ This doc is not expected to be complete.
 * Large Scale Field Construction -- inspired by WoL alpha footage
 
 #### Warhound
+Based off the melee HotS beta unit
 * Deploy Turret -- loosely inspired by co-op Tychus's Sirius ability
 
 #### Cyclone
+Based off the melee LotV unit
 * Internal Tech Module -- melee 5.0.12 removed the tech lab requirement for Cyclones
 * Mag-Field Aceelerator -- melee upgrade added in 4.7.1
 * Mag-Field Launcher -- melee 3.8.0 briefly had a +2 range upgrade with 4 base range, before just making it baseline
@@ -129,6 +132,7 @@ This doc is not expected to be complete.
 * Targeting Optics -- co-op Swann upgrade
 
 #### Widow Mine
+Based off the melee HotS unit
 * Black Market Launchers -- inspired by co-op Han & Horner upgrade
 * Executioner Missiles -- inspired by co-op Han & Horner upgrade
 * Demolition Payload -- AP original
@@ -158,12 +162,13 @@ This doc is not expected to be complete.
 * Shockwave Missile Battery -- vanilla WoL upgrade; vanilla NCO technology (Special Ordnance)
 
 #### Liberator
+Based off the melee LotV unit; also from NCO
 * Cloak -- vanilla NCO technology
 * Optimized Logistics -- vanilla NCO technology
 * Smart Servos -- vanilla NCO technology
 
 #### Valkyrie
-Brood war unit
+Based off the brood war unit
 
 #### Science Vessel
 * Defensive Matrix -- co-op Swann upgrade; brood war ability
@@ -209,7 +214,88 @@ Brood war unit
 #### Perdition Turret
 
 #### Devastator Turret
-Brought in from co-op Swann Devastator Turrets / Blaster Billy
+Based off the co-op Swann building: Devastator Turret / Blaster Billy
 
-### Zerg
-### Protoss
+## Zerg
+### General
+
+### Hatchery Units
+#### Zergling
+#### Swarm Queen
+#### Hive Queen
+Based off the melee Queen
+
+#### Roach
+#### Hydralisk
+#### Aberration
+#### Mutalisk
+#### Swarm Host
+#### Infestor
+#### Ultralisk
+#### Pygalisk
+Based off the enemy unit in Piercing the Shroud; largely original
+
+#### Corruptor
+Based off the melee unit
+
+#### Scourge
+Based off the brood war unit and co-op Zagara unit; also appears for the enemy in WoL
+
+#### Brood Queen
+Based off the co-op Stukov unit; also from brood war
+
+#### Defiler
+Based off the brood war; also appears for the enemy in NCO 2
+
+### Morphs
+#### Baneling
+#### Impaler
+#### Lurker
+#### Brood Lord
+#### Viper
+#### Guardian
+#### Devourer
+#### Ravager
+Based off the melee LotV unit
+
+#### Overseer
+Based off the melee unit
+
+#### Primal Igniter
+Based off the co-op Dehaka unit
+
+#### Tyrannozor
+Based off the co-op Dehaka unit
+
+### Infested Terran
+#### Infested Marine
+Based off the co-op Stukov unit
+
+#### Infested Diamondback
+Based off the co-op Stukov unit
+
+#### Infested Siege Tank
+Based off the co-op Stukov unit
+
+#### Bullfrog
+AP original unit
+
+#### Infested Banshee
+Based off the co-op Stukov unit
+
+#### Infested Liberator
+Based off the co-op Stukov unit
+
+### Buildings
+#### Spine Crawler
+#### Spore Crawler
+#### Bile Launcher
+Based off the co-op Zagara building
+
+#### Infested Missile Turret
+Based off the co-op Stukov building
+
+#### Infested Bunker
+Based off the co-op Stukov building
+
+## Protoss
