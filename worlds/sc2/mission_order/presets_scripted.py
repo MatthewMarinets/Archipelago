@@ -1,11 +1,16 @@
-from typing import Any
+from typing import Any, TYPE_CHECKING
 import copy
+
+if TYPE_CHECKING:
+    from .types import CampaignDict, LayoutDict
+
 
 def _required_option(option: str, options: dict[str, Any]) -> Any:
     """Returns the option value, or raises an error if the option is not present."""
     if option not in options:
         raise KeyError(f"Campaign preset is missing required option \"{option}\".")
     return options.pop(option)
+
 
 def _validate_option(option: str, options: dict[str, str], default: str, valid_values: list[str]) -> str:
     """Returns the option value if it is present and valid, the default if it is not present, or raises an error if it is present but not valid."""
@@ -14,7 +19,8 @@ def _validate_option(option: str, options: dict[str, str], default: str, valid_v
         raise ValueError(f"Preset option \"{option}\" received unknown value \"{result}\".")
     return result
 
-def make_golden_path(options: dict[str, Any]) -> dict[str, Any]:
+
+def make_golden_path(options: dict[str, Any]) -> 'CampaignDict':
     chain_name_options = [
         'Mar Sara', 'Agria', 'Redstone', 'Meinhoff', 'Haven', 'Tarsonis', 'Valhalla', 'Char',
         'Umoja', 'Kaldir', 'Zerus', 'Skygeirr Station', 'Dominion Space', 'Korhal',
@@ -79,7 +85,7 @@ def make_golden_path(options: dict[str, Any]) -> dict[str, Any]:
     campaign.add_mission(0, current_required_missions, is_final = True)
 
     # Create mission order preset out of campaign
-    layout_base = {
+    layout_base: 'LayoutDict' = {
         "type": "column",
         "display_name": chain_name_options,
         "unique_name": True,
@@ -90,7 +96,7 @@ def make_golden_path(options: dict[str, Any]) -> dict[str, Any]:
         layout_base["entry_rules"] = [{ "items": { "Key": 1 }}]
     elif keys_option == "progressive_layouts":
         layout_base["entry_rules"] = [{ "items": { "Progressive Key": 0 }}]
-    preset = {
+    preset: 'CampaignDict' = {
         str(chain): copy.deepcopy(layout_base) for chain in range(len(campaign.chain_lengths))
     }
     preset["0"]["exit"] = True
