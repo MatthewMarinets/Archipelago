@@ -15,7 +15,7 @@ from .options import (
     WarCouncilNerfs, GrantStoryTech
 )
 from .mission_order.options import CustomMissionOrder
-from .mission_order import SC2MissionOrder
+from .mission_order.mission_order import SC2MissionOrder
 from .mission_order.nodes import SC2MOGenMissionOrder
 from .mission_order.mission_pools import SC2MOGenMissionPools, Difficulty
 from .mission_order import generation
