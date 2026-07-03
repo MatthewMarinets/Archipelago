@@ -1,43 +1,47 @@
 from __future__ import annotations
-from typing import List, Callable, Set, Tuple, Union, TYPE_CHECKING, Dict, Any
+from typing import Callable, TYPE_CHECKING, Any, ClassVar
 import math
 from abc import ABC, abstractmethod
+import inspect
+import sys
 
 if TYPE_CHECKING:
     from .nodes import SC2MOGenMission
 
+
 class LayoutType(ABC):
     size: int
-    index_functions: List[str] = []
+    index_functions: list[str] = []
     """Names of available functions for mission indices. For list member `"my_fn"`, function should be called `idx_my_fn`."""
+    NAME_IN_OPTIONS: ClassVar[str]
 
     def __init__(self, size: int):
         self.size = size
 
-    def set_options(self, options: Dict[str, Any]) -> Dict[str, Any]:
+    def set_options(self, options: dict[str, Any]) -> dict[str, Any]:
         """Get type-specific options from the provided dict. Should return unused values."""
         return options
 
     @abstractmethod
-    def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> List[SC2MOGenMission]:
+    def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> list[SC2MOGenMission]:
         """Use the provided `Callable` to create a one-dimensional list of mission slots and set up initial settings and connections.
 
         This should include at least one entrance and exit."""
         return []
 
-    def final_setup(self, missions: List[SC2MOGenMission]):
+    def final_setup(self, missions: list[SC2MOGenMission]):
         """Called after user changes to the layout are applied to make any final checks and changes.
 
         Implementers should make changes with caution, since it runs after a user's explicit commands are implemented."""
         return
 
-    def parse_index(self, term: str) -> Union[Set[int], None]:
+    def parse_index(self, term: str) -> set[int] | None:
         """From the given term, determine a list of desired target indices. The term is guaranteed to not be "entrances", "exits", or "all".
 
         If the term cannot be parsed, either raise an exception or return `None`."""
         return self.parse_index_as_function(term)
 
-    def parse_index_as_function(self, term: str) -> Union[Set[int], None]:
+    def parse_index_as_function(self, term: str) -> set[int] | None:
         """Helper function to interpret the term as a function call on the layout type, if it is declared in `self.index_functions`.
 
         Returns the function's return value if `term` is a valid function call, `None` otherwise."""
@@ -63,21 +67,22 @@ class LayoutType(ABC):
             return None
 
     @abstractmethod
-    def get_visual_layout(self) -> List[List[int]]:
+    def get_visual_layout(self) -> list[list[int]]:
         """Organize the mission slots into a list of columns from left to right and top to bottom.
         The list should contain indices into the list created by `make_slots`. Intentionally empty spots should contain -1.
 
         The resulting 2D list should be rectangular."""
         pass
 
+
 class Column(LayoutType):
     """Linear layout. Default entrance is index 0 at the top, default exit is index `size - 1` at the bottom."""
-
+    NAME_IN_OPTIONS = "column"
     # 0
     # 1
     # 2
 
-    def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> List[SC2MOGenMission]:
+    def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> list[SC2MOGenMission]:
         missions = [mission_factory() for _ in range(self.size)]
         missions[0].option_entrance = True
         missions[-1].option_exit = True
@@ -85,11 +90,13 @@ class Column(LayoutType):
             missions[i].next.append(missions[i + 1])
         return missions
 
-    def get_visual_layout(self) -> List[List[int]]:
+    def get_visual_layout(self) -> list[list[int]]:
         return [list(range(self.size))]
+
 
 class Grid(LayoutType):
     """Rectangular grid. Default entrance is index 0 in the top left, default exit is index `size - 1` in the bottom right."""
+    NAME_IN_OPTIONS = "grid"
     width: int
     height: int
     num_corners_to_remove: int
@@ -103,7 +110,7 @@ class Grid(LayoutType):
     # 3 4 5
     # 6 7 8
 
-    def set_options(self, options: Dict[str, Any]) -> Dict[str, Any]:
+    def set_options(self, options: dict[str, Any]) -> dict[str, Any]:
         self.two_start_positions = options.pop("two_start_positions", False) and self.size >= 2
         if self.two_start_positions:
             self.size += 1
@@ -117,7 +124,7 @@ class Grid(LayoutType):
         return options
 
     @staticmethod
-    def get_factors(number: int) -> Tuple[int, int]:
+    def get_factors(number: int) -> tuple[int, int]:
         """
         Simple factorization into pairs of numbers (x, y) using a sieve method.
         Returns the factorization that is most square, i.e. where x + y is minimized.
@@ -131,7 +138,7 @@ class Grid(LayoutType):
         return 1, number
 
     @staticmethod
-    def get_grid_dimensions(size: int) -> Tuple[int, int, int]:
+    def get_grid_dimensions(size: int) -> tuple[int, int, int]:
         """
         Get the dimensions of a grid mission order from the number of missions, int the format (x, y, error).
         * Error will always be 0, 1, or 2, so the missions can be removed from the corners that aren't the start or end.
@@ -140,23 +147,23 @@ class Grid(LayoutType):
         * If multiple options of the same rating are possible, the one with the larger error is chosen,
         as it will appear more square. Compare 3x11 to 5x7-2 for an example of this.
         """
-        dimension_candidates: List[Tuple[int, int, int]] = [(*Grid.get_factors(size + x), x) for x in (2, 1, 0)]
+        dimension_candidates: list[tuple[int, int, int]] = [(*Grid.get_factors(size + x), x) for x in (2, 1, 0)]
         best_dimension = min(dimension_candidates, key=sum)
         return best_dimension
 
     @staticmethod
-    def manhattan_distance(point1: Tuple[int, int], point2: Tuple[int, int]) -> int:
+    def manhattan_distance(point1: tuple[int, int], point2: tuple[int, int]) -> int:
         return abs(point1[0] - point2[0]) + abs(point1[1] - point2[1])
 
     @staticmethod
-    def euclidean_distance_squared(point1: Tuple[int, int], point2: Tuple[int, int]) -> int:
+    def euclidean_distance_squared(point1: tuple[int, int], point2: tuple[int, int]) -> int:
         return (point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2
 
     @staticmethod
-    def euclidean_distance(point1: Tuple[int, int], point2: Tuple[int, int]) -> float:
+    def euclidean_distance(point1: tuple[int, int], point2: tuple[int, int]) -> float:
         return math.sqrt(Grid.euclidean_distance_squared(point1, point2))
 
-    def get_grid_coordinates(self, idx: int) -> Tuple[int, int]:
+    def get_grid_coordinates(self, idx: int) -> tuple[int, int]:
         return (idx % self.width), (idx // self.width)
 
     def get_grid_index(self, x: int, y: int) -> int:
@@ -168,7 +175,7 @@ class Grid(LayoutType):
             0 <= y < self.height
         )
 
-    def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> List[SC2MOGenMission]:
+    def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> list[SC2MOGenMission]:
         missions = [mission_factory() for _ in range(self.width * self.height)]
         if self.two_start_positions:
             missions[0].option_empty = True
@@ -228,14 +235,14 @@ class Grid(LayoutType):
 
         return missions
 
-    def get_visual_layout(self) -> List[List[int]]:
+    def get_visual_layout(self) -> list[list[int]]:
         columns = [
             [self.get_grid_index(x, y) for y in range(self.height)]
             for x in range(self.width)
         ]
         return columns
 
-    def idx_point(self, x: str, y: str) -> Union[Set[int], None]:
+    def idx_point(self, x: str | int, y: str | int) -> set[int] | None:
         try:
             x = int(x)
             y = int(y)
@@ -245,7 +252,7 @@ class Grid(LayoutType):
             return {self.get_grid_index(x, y)}
         return None
 
-    def idx_rect(self, x: str, y: str, width: str, height: str) -> Union[Set[int], None]:
+    def idx_rect(self, x: str | int, y: str | int, width: str | int, height: str | int) -> set[int] | None:
         try:
             x = int(x)
             y = int(y)
@@ -264,8 +271,9 @@ class Grid(LayoutType):
 
 class Canvas(Grid):
     """Rectangular grid that determines size and filled slots based on special canvas option."""
-    canvas: List[str]
-    groups: Dict[str, List[int]]
+    NAME_IN_OPTIONS = "canvas"
+    canvas: list[str]
+    groups: dict[str, list[int]]
     jump_distance_orthogonal: int
     jump_distance_diagonal: int
 
@@ -274,7 +282,7 @@ class Canvas(Grid):
 
     index_functions = Grid.index_functions + ["group"]
 
-    def set_options(self, options: Dict[str, Any]) -> Dict[str, Any]:
+    def set_options(self, options: dict[str, Any]) -> dict[str, Any]:
         self.width = options.pop("width") # Should be guaranteed by the option parser
         self.height = math.ceil(self.size / self.width)
         self.num_corners_to_remove = 0
@@ -298,7 +306,7 @@ class Canvas(Grid):
 
         return options
 
-    def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> List[SC2MOGenMission]:
+    def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> list[SC2MOGenMission]:
         missions = super().make_slots(mission_factory)
         missions[0].option_entrance = False
         missions[-1].option_exit = False
@@ -308,13 +316,13 @@ class Canvas(Grid):
             missions[idx].option_empty = True
 
         # Raycast into jump directions to find nearest empty space
-        def jump(point: Tuple[int, int], direction: Tuple[int, int], distance: int) -> Tuple[int, int]:
+        def jump(point: tuple[int, int], direction: tuple[int, int], distance: int) -> tuple[int, int]:
             return (
                 point[0] + direction[0] * distance,
                 point[1] + direction[1] * distance
             )
 
-        def raycast(point: Tuple[int, int], direction: Tuple[int, int], max_distance: int) -> Union[Tuple[int, SC2MOGenMission], None]:
+        def raycast(point: tuple[int, int], direction: tuple[int, int], max_distance: int) -> tuple[int, SC2MOGenMission] | None:
             for distance in range(1, max_distance + 1):
                 target = jump(point, direction, distance)
                 if self.is_valid_coordinates(*target):
@@ -357,10 +365,10 @@ class Canvas(Grid):
 
         return missions
 
-    def final_setup(self, missions: List[SC2MOGenMission]):
+    def final_setup(self, missions: list[SC2MOGenMission]):
         # Pick missions near the original start and end to set as default entrance/exit
         # if the user didn't set one themselves
-        def distance_lambda(point: Tuple[int, int]) -> Callable[[Tuple[int, SC2MOGenMission]], int]:
+        def distance_lambda(point: tuple[int, int]) -> Callable[[tuple[int, SC2MOGenMission]], int]:
             return lambda idx_mission: Grid.euclidean_distance_squared(self.get_grid_coordinates(idx_mission[0]), point)
 
         if not any(mission.option_entrance for mission in missions):
@@ -379,7 +387,7 @@ class Canvas(Grid):
             )
             closest_to_bottom_right[0][1].option_exit = True
 
-    def idx_group(self, group: str) -> Union[Set[int], None]:
+    def idx_group(self, group: str) -> set[int] | None:
         if group not in self.groups:
             return None
         return set(self.groups[group])
@@ -388,6 +396,7 @@ class Canvas(Grid):
 class Hopscotch(LayoutType):
     """Alternating between one and two available missions.
     Default entrance is index 0 in the top left, default exit is index `size - 1` in the bottom right."""
+    NAME_IN_OPTIONS = "hopscotch"
     width: int
     spacer: int
     two_start_positions: bool
@@ -401,7 +410,7 @@ class Hopscotch(LayoutType):
     #   4 6
     #     7
 
-    def set_options(self, options: Dict[str, Any]) -> Dict[str, Any]:
+    def set_options(self, options: dict[str, Any]) -> dict[str, Any]:
         self.two_start_positions = options.pop("two_start_positions", False) and self.size >= 2
         if self.two_start_positions:
             self.size += 1
@@ -411,7 +420,7 @@ class Hopscotch(LayoutType):
         self.spacer = max(spacer, 1)
         return options
 
-    def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> List[SC2MOGenMission]:
+    def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> list[SC2MOGenMission]:
         slots = [mission_factory() for _ in range(self.size)]
         if self.two_start_positions:
             slots[0].option_empty = True
@@ -439,7 +448,7 @@ class Hopscotch(LayoutType):
         return slots
 
     @staticmethod
-    def space_at_column(idx: int) -> List[int]:
+    def space_at_column(idx: int) -> list[int]:
         # -1 0 1 2 3 4 5
         amount = idx - 1
         if amount > 0:
@@ -447,10 +456,10 @@ class Hopscotch(LayoutType):
         else:
             return []
 
-    def get_visual_layout(self) -> List[List[int]]:
+    def get_visual_layout(self) -> list[list[int]]:
         # size offset by 1 to account for first column of two slots
-        cols: List[List[int]] = []
-        col: List[int] = []
+        cols: list[list[int]] = []
+        col: list[int] = []
         col_size = 1
         for idx in range(self.size):
             if col_size == 3:
@@ -463,7 +472,7 @@ class Hopscotch(LayoutType):
         if len(col) > 0:
             cols.append(col)
 
-        final_cols: List[List[int]] = [Hopscotch.space_at_column(idx) for idx in range(min(len(cols), self.width))]
+        final_cols: list[list[int]] = [Hopscotch.space_at_column(idx) for idx in range(min(len(cols), self.width))]
         for (col_idx, col) in enumerate(cols):
             if col_idx >= self.width:
                 final_cols[col_idx % self.width].extend([-1 for _ in range(self.spacer)])
@@ -473,28 +482,28 @@ class Hopscotch(LayoutType):
 
         return final_cols
 
-    def idx_bottom(self) -> Set[int]:
+    def idx_bottom(self) -> set[int]:
         corners = math.ceil(self.size / 3)
         indices = [num * 3 + 1 for num in range(corners)]
         return {
             idx for idx in indices if idx < self.size
         }
 
-    def idx_top(self) -> Set[int]:
+    def idx_top(self) -> set[int]:
         corners = math.ceil(self.size / 3)
         indices = [num * 3 + 2 for num in range(corners)]
         return {
             idx for idx in indices if idx < self.size
         }
 
-    def idx_middle(self) -> Set[int]:
+    def idx_middle(self) -> set[int]:
         corners = math.ceil(self.size / 3)
         indices = [num * 3 for num in range(corners)]
         return {
             idx for idx in indices if idx < self.size
         }
 
-    def idx_corner(self, number: str) -> Union[Set[int], None]:
+    def idx_corner(self, number: str) -> set[int] | None:
         try:
             number = int(number)
         except:
@@ -511,18 +520,19 @@ class Hopscotch(LayoutType):
 class Gauntlet(LayoutType):
     """Long, linear layout. Goes horizontally and wraps around.
     Default entrance is index 0 in the top left, default exit is index `size - 1` in the bottom right."""
+    NAME_IN_OPTIONS = "gauntlet"
     width: int
 
     # 0 1 2 3
     #
     # 4 5 6 7
 
-    def set_options(self, options: Dict[str, Any]) -> Dict[str, Any]:
+    def set_options(self, options: dict[str, Any]) -> dict[str, Any]:
         width: int = options.pop("width", 7)
         self.width = min(max(width, 4), self.size)
         return options
 
-    def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> List[SC2MOGenMission]:
+    def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> list[SC2MOGenMission]:
         missions = [mission_factory() for _ in range(self.size)]
         missions[0].option_entrance = True
         missions[-1].option_exit = True
@@ -530,7 +540,7 @@ class Gauntlet(LayoutType):
             missions[i].next.append(missions[i + 1])
         return missions
 
-    def get_visual_layout(self) -> List[List[int]]:
+    def get_visual_layout(self) -> list[list[int]]:
         columns = [[] for _ in range(self.width)]
         for idx in range(self.size):
             if idx >= self.width:
@@ -541,9 +551,11 @@ class Gauntlet(LayoutType):
 
         return columns
 
+
 class Blitz(LayoutType):
     """Rows of missions, one mission per row required.
     Default entrances are every mission in the top row, default exit is a central mission in the bottom row."""
+    NAME_IN_OPTIONS = "blitz"
     width: int
 
     index_functions = [
@@ -553,7 +565,7 @@ class Blitz(LayoutType):
     # 0 1 2 3
     # 4 5 6 7
 
-    def set_options(self, options: Dict[str, Any]) -> Dict[str, Any]:
+    def set_options(self, options: dict[str, Any]) -> dict[str, Any]:
         width = options.pop("width", 0)
         if width < 1:
             min_width, max_width = 2, 5
@@ -563,7 +575,7 @@ class Blitz(LayoutType):
             self.width = min(self.size, width)
         return options
 
-    def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> List[SC2MOGenMission]:
+    def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> list[SC2MOGenMission]:
         slots = [mission_factory() for _ in range(self.size)]
         for idx in range(self.width):
             slots[idx].option_entrance = True
@@ -590,7 +602,7 @@ class Blitz(LayoutType):
 
         return slots
 
-    def get_visual_layout(self) -> List[List[int]]:
+    def get_visual_layout(self) -> list[list[int]]:
         columns = [[] for _ in range(self.width)]
         for idx in range(self.size):
             columns[idx % self.width].append(idx)
@@ -599,7 +611,7 @@ class Blitz(LayoutType):
 
         return columns
 
-    def idx_row(self, row: str) -> Union[Set[int], None]:
+    def idx_row(self, row: str) -> set[int] | None:
         try:
             row = int(row)
         except:
@@ -612,9 +624,18 @@ class Blitz(LayoutType):
             idx for idx in indices if idx < self.size
         }
 
-def fill_to_longest(columns: List[List[int]]):
+
+def fill_to_longest(columns: list[list[int]]):
     longest = max(len(col) for col in columns)
     for idx in range(len(columns)):
         length = len(columns[idx])
         if length < longest:
             columns[idx].extend([-1 for _ in range(longest - length)])
+
+
+LAYOUT_TYPE_NAME_TO_CLASS = {
+    _class.NAME_IN_OPTIONS: _class
+    for _, _class in inspect.getmembers(sys.modules[__name__])
+    if inspect.isclass(_class)
+    and hasattr(_class, "NAME_IN_OPTIONS")
+}
