@@ -22,6 +22,12 @@ from .mission_order import generation
 
 if TYPE_CHECKING:
     from . import SC2World
+    from .mission_order.types import (
+        CampaignPresetDict,
+        CampaignDict,
+        EntryRulePresetDict,
+        EntryRuleDict,
+    )
 
 
 def create_mission_order(world: 'SC2World', location_cache: list[Location]) -> SC2MissionOrder:
@@ -180,7 +186,7 @@ def setup_mission_pool_balancing(world: 'SC2World', pools: SC2MOGenMissionPools)
 
 def create_regular_mission_order(
     world: 'SC2World', mission_pools: SC2MOGenMissionPools
-) -> dict[str, dict[str, Any]]:
+) -> dict[str, 'CampaignDict']:
     mission_order_type = world.options.mission_order.value
 
     if mission_order_type in static_mission_orders:
@@ -191,8 +197,8 @@ def create_regular_mission_order(
 
 def create_static_mission_order(
     world: 'SC2World', mission_order_type: int, mission_pools: SC2MOGenMissionPools
-) -> dict[str, dict[str, Any]]:
-    mission_order: Dict[str, Dict[str, Any]] = {}
+) -> dict[str, 'CampaignDict']:
+    mission_order_spec: dict[str, 'CampaignPresetDict'] = {}
 
     enabled_campaigns = get_enabled_campaigns(world)
     if mission_order_type == MissionOrder.option_vanilla:
@@ -227,7 +233,7 @@ def create_static_mission_order(
     else:
         prefix = ""
 
-    def mission_order_preset(name: str) -> dict[str, str | bool]:
+    def mission_order_preset(name: str) -> 'CampaignPresetDict':
         return {
             "preset": prefix + name,
             "missions": missions,
@@ -238,36 +244,37 @@ def create_static_mission_order(
     prophecy_enabled = SC2Campaign.PROPHECY in enabled_campaigns
     wol_enabled = SC2Campaign.WOL in enabled_campaigns
     if wol_enabled:
-        mission_order[SC2Campaign.WOL.campaign_name] = mission_order_preset("wol")
+        mission_order_spec[SC2Campaign.WOL.campaign_name] = mission_order_preset("wol")
 
     if prophecy_enabled:
-        mission_order[SC2Campaign.PROPHECY.campaign_name] = mission_order_preset("prophecy")
+        mission_order_spec[SC2Campaign.PROPHECY.campaign_name] = mission_order_preset("prophecy")
 
     if SC2Campaign.HOTS in enabled_campaigns:
-        mission_order[SC2Campaign.HOTS.campaign_name] = mission_order_preset("hots")
+        mission_order_spec[SC2Campaign.HOTS.campaign_name] = mission_order_preset("hots")
 
     if SC2Campaign.PROLOGUE in enabled_campaigns:
-        mission_order[SC2Campaign.PROLOGUE.campaign_name] = mission_order_preset("prologue")
+        mission_order_spec[SC2Campaign.PROLOGUE.campaign_name] = mission_order_preset("prologue")
 
     if SC2Campaign.LOTV in enabled_campaigns:
-        mission_order[SC2Campaign.LOTV.campaign_name] = mission_order_preset("lotv")
+        mission_order_spec[SC2Campaign.LOTV.campaign_name] = mission_order_preset("lotv")
 
     if SC2Campaign.EPILOGUE in enabled_campaigns:
-        mission_order[SC2Campaign.EPILOGUE.campaign_name] = mission_order_preset("epilogue")
-        entry_rules = []
+        mission_order_spec[SC2Campaign.EPILOGUE.campaign_name] = mission_order_preset("epilogue")
+        entry_rules: list['EntryRulePresetDict'] = []
         if SC2Campaign.WOL in enabled_campaigns:
             entry_rules.append({"scope": SC2Campaign.WOL.campaign_name})
         if SC2Campaign.HOTS in enabled_campaigns:
             entry_rules.append({"scope": SC2Campaign.HOTS.campaign_name})
         if SC2Campaign.LOTV in enabled_campaigns:
             entry_rules.append({"scope": SC2Campaign.LOTV.campaign_name})
-        mission_order[SC2Campaign.EPILOGUE.campaign_name]["entry_rules"] = entry_rules
+        mission_order_spec[SC2Campaign.EPILOGUE.campaign_name]["entry_rules"] = entry_rules
 
     if SC2Campaign.NCO in enabled_campaigns:
-        mission_order[SC2Campaign.NCO.campaign_name] = mission_order_preset("nco")
+        mission_order_spec[SC2Campaign.NCO.campaign_name] = mission_order_preset("nco")
 
     # Resolve immediately so the layout updates are simpler
-    mission_order = CustomMissionOrder(mission_order).value
+    mission_order = CustomMissionOrder(mission_order_spec).value
+    del mission_order_spec
 
     # WoL requirements should count missions from Prophecy if both are enabled,
     # and Prophecy should require a WoL mission.
@@ -286,11 +293,11 @@ def create_static_mission_order(
     return mission_order
 
 
-def fix_wol_prophecy_entry_rules(mission_order: dict[str, dict[str, Any]]) -> None:
+def fix_wol_prophecy_entry_rules(mission_order: dict[str, 'CampaignDict']) -> None:
     prophecy_name = SC2Campaign.PROPHECY.campaign_name
 
     # Make the mission count entry rules in WoL also count Prophecy
-    def fix_entry_rule(entry_rule: dict[str, Any], local_campaign_scope: str) -> None:
+    def fix_entry_rule(entry_rule: 'EntryRuleDict', local_campaign_scope: str) -> None:
         # This appends Prophecy to any scope that points at the local campaign (WoL)
         if "scope" in entry_rule:
             if entry_rule["scope"] == local_campaign_scope:
@@ -298,9 +305,7 @@ def fix_wol_prophecy_entry_rules(mission_order: dict[str, dict[str, Any]]) -> No
             elif isinstance(entry_rule["scope"], list) and local_campaign_scope in entry_rule["scope"]:
                 entry_rule["scope"] = entry_rule["scope"] + [prophecy_name]
 
-    for layout_dict in mission_order[SC2Campaign.WOL.campaign_name].values():
-        if not isinstance(layout_dict, dict):
-            continue
+    for layout_dict in mission_order[SC2Campaign.WOL.campaign_name]["layouts"].values():
         if "entry_rules" in layout_dict:
             for entry_rule in layout_dict["entry_rules"]:
                 fix_entry_rule(entry_rule, "..")
@@ -311,13 +316,13 @@ def fix_wol_prophecy_entry_rules(mission_order: dict[str, dict[str, Any]]) -> No
                         fix_entry_rule(entry_rule, "../..")
 
     # Make Prophecy require Artifact's second mission
-    mission_order[prophecy_name][prophecy_name]["entry_rules"] = [
+    mission_order[prophecy_name]["layouts"][prophecy_name]["entry_rules"] = [
         {"scope": [f"{SC2Campaign.WOL.campaign_name}/Artifact/1"]}
     ]
 
 
 def force_final_missions(
-    world: 'SC2World', mission_order: Dict[str, Dict[str, Any]], mission_order_type: int
+    world: 'SC2World', mission_order: dict[str, 'CampaignDict'], mission_order_type: int
 ) -> None:
     goal_mission: Optional[SC2Mission] = None
     excluded_missions = get_excluded_missions(world)
@@ -361,9 +366,9 @@ def force_final_missions(
                 goal_mission = primary_goal.mission
 
             # The goal layout for static presets is the layout corresponding to the last key
-            goal_layout = list(mission_order[goal_campaign.campaign_name].keys())[-1]
-            goal_index = mission_order[goal_campaign.campaign_name][goal_layout]["size"] - 1
-            mission_order[goal_campaign.campaign_name][goal_layout]["missions"].append({
+            goal_layout = list(mission_order[goal_campaign.campaign_name]["layouts"].keys())[-1]
+            goal_index = mission_order[goal_campaign.campaign_name]["layouts"][goal_layout]["size"] - 1
+            mission_order[goal_campaign.campaign_name]["layouts"][goal_layout]["missions"].append({
                 "index": [goal_index],
                 "mission_pool": [goal_mission.id]
             })
@@ -375,16 +380,15 @@ def force_final_missions(
 
 
 def remove_missions(
-    world: 'SC2World', mission_order: Dict[str, Dict[str, Any]], mission_pools: SC2MOGenMissionPools
+    world: 'SC2World', mission_order: dict[str, 'CampaignDict'], mission_pools: SC2MOGenMissionPools
 ) -> None:
     enabled_campaigns = get_enabled_campaigns(world)
-    removed_counts: Dict[SC2Campaign, Dict[str, int]] = {}
+    removed_counts: dict[SC2Campaign, dict[str, int]] = {}
     for campaign in enabled_campaigns:
         # Count missing missions for each campaign individually
         campaign_size = sum(
             layout["size"]
-            for layout in mission_order[campaign.campaign_name].values()
-            if isinstance(layout, dict)
+            for layout in mission_order[campaign.campaign_name]["layouts"].values()
         )
         allowed_missions = mission_pools.count_allowed_missions(campaign)
         removal_count = campaign_size - allowed_missions
@@ -393,15 +397,15 @@ def remove_missions(
         for layout in removal_priorities[campaign][:removal_count]:
             removed_counts.setdefault(campaign, {}).setdefault(layout, 0)
             removed_counts[campaign][layout] += 1
-            mission_order[campaign.campaign_name][layout]["size"] -= 1
+            mission_order[campaign.campaign_name]["layouts"][layout]["size"] -= 1
 
     # Fix mission indices & nexts
-    for (campaign, layouts) in removed_counts.items():
-        for (layout, amount) in layouts.items():
-            new_size = mission_order[campaign.campaign_name][layout]["size"]
+    for (campaign, removed_layouts) in removed_counts.items():
+        for (layout, amount) in removed_layouts.items():
+            new_size = mission_order[campaign.campaign_name]["layouts"][layout]["size"]
             original_size = new_size + amount
             for removed_idx in range(new_size, original_size):
-                for mission in mission_order[campaign.campaign_name][layout]["missions"]:
+                for mission in mission_order[campaign.campaign_name]["layouts"][layout]["missions"]:
                     if "index" in mission and removed_idx in mission["index"]:
                         mission["index"].remove(removed_idx)
                     if "next" in mission and removed_idx in mission["next"]:
@@ -411,11 +415,11 @@ def remove_missions(
     if SC2Campaign.WOL in removed_counts:
         if "Char" in removed_counts[SC2Campaign.WOL]:
             # Remove the first two mission changes that create the branching path
-            mission_order[SC2Campaign.WOL.campaign_name]["Char"]["missions"] = mission_order[SC2Campaign.WOL.campaign_name]["Char"]["missions"][2:]
+            mission_order[SC2Campaign.WOL.campaign_name]["layouts"]["Char"]["missions"] = mission_order[SC2Campaign.WOL.campaign_name]["Char"]["missions"][2:]
     if SC2Campaign.NCO in removed_counts:
         # Remove the whole last layout if its size is 0
-        if "Mission Pack 3" in removed_counts[SC2Campaign.NCO] and removed_counts[SC2Campaign.NCO]["Mission Pack 3"] == 3:
-            mission_order[SC2Campaign.NCO.campaign_name].pop("Mission Pack 3")
+        if removed_counts[SC2Campaign.NCO].get("Mission Pack 3", 0) == 3:
+            mission_order[SC2Campaign.NCO.campaign_name]["layouts"].pop("Mission Pack 3")
 
 
 removal_priorities: Dict[SC2Campaign, List[str]] = {
@@ -542,7 +546,7 @@ def make_hopscotch(world: 'SC2World', size: int) -> dict[str, dict[str, Any]]:
 
 def create_dynamic_mission_order(
     world: 'SC2World', mission_order_type: int, mission_pools: SC2MOGenMissionPools
-) -> dict[str, dict[str, Any]]:
+) -> dict[str, 'CampaignDict']:
     num_missions = min(mission_pools.get_allowed_mission_count(), world.options.maximum_campaign_size.value)
     num_missions = max(1, num_missions)
     if mission_order_type == MissionOrder.option_golden_path:

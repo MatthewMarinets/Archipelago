@@ -35,6 +35,7 @@
     - [Empty](#empty)
     - [Next](#next)
     - [Victory Cache](#victory-cache)
+    - [Heroes](#heroes)
   - [Layout Types](#layout-types)
     - [Column](#column)
     - [Grid](#grid)
@@ -262,7 +263,7 @@ To summarize:
 
 ## Shared options
 
-These are the options that are shared between at least two of campaigns, layouts and missions. All the options below are listed with their defaults.
+These are the options that are shared between at least two of campaigns, layouts, and missions. All the options below are listed with their defaults.
 
 ---
 ### Display Name
@@ -685,9 +686,9 @@ Available static presets are the following:
 - `Mini NCO`
 
 For these presets, the layout names used to override settings match the names shown in the client, with some exceptions:
-- Prophecy, Prologue and Epilogue contain a single Gauntlet each, which are named `Prophecy`, `Prologue` and `Epilogue` respectively.
-- The Gauntlets in the Mini variants of the above are also named `Prophecy`, `Prologue` and `Epilogue`.
-- NCO and Mini NCO contain three columns each, named `Mission Pack 1`, `Mission Pack 2` and `Mission Pack 3`.
+- Prophecy, Prologue, and Epilogue contain a single Gauntlet each, which are named `Prophecy`, `Prologue`, and `Epilogue` respectively.
+- The Gauntlets in the Mini variants of the above are also named `Prophecy`, `Prologue`, and `Epilogue`.
+- NCO and Mini NCO contain three columns each, named `Mission Pack 1`, `Mission Pack 2`, and `Mission Pack 3`.
 
 #### Preset Options
 All static presets accept these options, as shown in the example above:

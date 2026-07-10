@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Callable, TYPE_CHECKING, Any, ClassVar
+from typing import Callable, TYPE_CHECKING, Any, ClassVar, Type
 import math
 from abc import ABC, abstractmethod
 import inspect
@@ -7,6 +7,7 @@ import sys
 
 if TYPE_CHECKING:
     from .nodes import SC2MOGenMission
+    from .types import LayoutDict
 
 
 class LayoutType(ABC):
@@ -18,9 +19,9 @@ class LayoutType(ABC):
     def __init__(self, size: int):
         self.size = size
 
-    def set_options(self, options: dict[str, Any]) -> dict[str, Any]:
+    def set_options(self, options: 'LayoutDict') -> None:
         """Get type-specific options from the provided dict. Should return unused values."""
-        return options
+        return None
 
     @abstractmethod
     def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> list[SC2MOGenMission]:
@@ -110,18 +111,17 @@ class Grid(LayoutType):
     # 3 4 5
     # 6 7 8
 
-    def set_options(self, options: dict[str, Any]) -> dict[str, Any]:
-        self.two_start_positions = options.pop("two_start_positions", False) and self.size >= 2
+    def set_options(self, options: 'LayoutDict') -> None:
+        self.two_start_positions = options.get("two_start_positions", False) and self.size >= 2
         if self.two_start_positions:
             self.size += 1
-        width: int = options.pop("width", 0)
+        width: int = options.get("width", 0)
         if width < 1:
             self.width, self.height, self.num_corners_to_remove = Grid.get_grid_dimensions(self.size)
         else:
             self.width = width
             self.height = math.ceil(self.size / self.width)
             self.num_corners_to_remove = self.height * width - self.size
-        return options
 
     @staticmethod
     def get_factors(number: int) -> tuple[int, int]:
@@ -282,19 +282,18 @@ class Canvas(Grid):
 
     index_functions = Grid.index_functions + ["group"]
 
-    def set_options(self, options: dict[str, Any]) -> dict[str, Any]:
-        self.width = options.pop("width") # Should be guaranteed by the option parser
+    def set_options(self, options: 'LayoutDict') -> None:
+        self.width = options["width"]
         self.height = math.ceil(self.size / self.width)
         self.num_corners_to_remove = 0
         self.two_start_positions = False
-        self.jump_distance_orthogonal = max(options.pop("jump_distance_orthogonal", 1), 1)
-        self.jump_distance_diagonal = max(options.pop("jump_distance_diagonal", 1), 0)
+        self.jump_distance_orthogonal = options.get("jump_distance_orthogonal", 1)
+        self.jump_distance_diagonal = options.get("jump_distance_diagonal", 1)
 
-        if "canvas" not in options:
-            raise KeyError("Canvas layout is missing required canvas option. Either create it or change type to Grid.")
-        self.canvas = options.pop("canvas")
+        assert "canvas" in options, "canvas key is required for canvas type; should be enforced by option parse"
+        self.canvas = options["canvas"]
         # Pad short lines with spaces
-        longest_line = max(len(line) for line in self.canvas)
+        longest_line = self.width
         for idx in range(len(self.canvas)):
             padding = ' ' * (longest_line - len(self.canvas[idx]))
             self.canvas[idx] += padding
@@ -303,8 +302,6 @@ class Canvas(Grid):
         for (line_idx, line) in enumerate(self.canvas):
             for (char_idx, char) in enumerate(line):
                 self.groups.setdefault(char, []).append(self.get_grid_index(char_idx, line_idx))
-
-        return options
 
     def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> list[SC2MOGenMission]:
         missions = super().make_slots(mission_factory)
@@ -410,15 +407,14 @@ class Hopscotch(LayoutType):
     #   4 6
     #     7
 
-    def set_options(self, options: dict[str, Any]) -> dict[str, Any]:
-        self.two_start_positions = options.pop("two_start_positions", False) and self.size >= 2
+    def set_options(self, options: 'LayoutDict') -> None:
+        self.two_start_positions = options.get("two_start_positions", False) and self.size >= 2
         if self.two_start_positions:
             self.size += 1
-        width: int = options.pop("width", 7)
+        width: int = options.get("width", 7)
         self.width = max(width, 4)
-        spacer: int = options.pop("spacer", 2)
+        spacer: int = options.get("spacer", 2)
         self.spacer = max(spacer, 1)
-        return options
 
     def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> list[SC2MOGenMission]:
         slots = [mission_factory() for _ in range(self.size)]
@@ -503,7 +499,7 @@ class Hopscotch(LayoutType):
             idx for idx in indices if idx < self.size
         }
 
-    def idx_corner(self, number: str) -> set[int] | None:
+    def idx_corner(self, number: str | int) -> set[int] | None:
         try:
             number = int(number)
         except:
@@ -527,10 +523,9 @@ class Gauntlet(LayoutType):
     #
     # 4 5 6 7
 
-    def set_options(self, options: dict[str, Any]) -> dict[str, Any]:
-        width: int = options.pop("width", 7)
+    def set_options(self, options: 'LayoutDict') -> None:
+        width: int = options.get("width", 7)
         self.width = min(max(width, 4), self.size)
-        return options
 
     def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> list[SC2MOGenMission]:
         missions = [mission_factory() for _ in range(self.size)]
@@ -541,7 +536,7 @@ class Gauntlet(LayoutType):
         return missions
 
     def get_visual_layout(self) -> list[list[int]]:
-        columns = [[] for _ in range(self.width)]
+        columns: list[list[int]] = [[] for _ in range(self.width)]
         for idx in range(self.size):
             if idx >= self.width:
                 columns[idx % self.width].append(-1)
@@ -565,15 +560,14 @@ class Blitz(LayoutType):
     # 0 1 2 3
     # 4 5 6 7
 
-    def set_options(self, options: dict[str, Any]) -> dict[str, Any]:
-        width = options.pop("width", 0)
+    def set_options(self, options: 'LayoutDict') -> None:
+        width = options.get("width", 0)
         if width < 1:
             min_width, max_width = 2, 5
             mission_divisor = 5
             self.width = min(max(self.size // mission_divisor, min_width), max_width)
         else:
             self.width = min(self.size, width)
-        return options
 
     def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> list[SC2MOGenMission]:
         slots = [mission_factory() for _ in range(self.size)]
@@ -603,7 +597,7 @@ class Blitz(LayoutType):
         return slots
 
     def get_visual_layout(self) -> list[list[int]]:
-        columns = [[] for _ in range(self.width)]
+        columns: list[list[int]] = [[] for _ in range(self.width)]
         for idx in range(self.size):
             columns[idx % self.width].append(idx)
 
@@ -611,7 +605,7 @@ class Blitz(LayoutType):
 
         return columns
 
-    def idx_row(self, row: str) -> set[int] | None:
+    def idx_row(self, row: str | int) -> set[int] | None:
         try:
             row = int(row)
         except:
@@ -633,8 +627,8 @@ def fill_to_longest(columns: list[list[int]]):
             columns[idx].extend([-1 for _ in range(longest - length)])
 
 
-LAYOUT_TYPE_NAME_TO_CLASS = {
-    _class.NAME_IN_OPTIONS: _class
+LAYOUT_TYPE_NAME_TO_CLASS: dict[str, Type[LayoutType]] = {
+    str(_class.NAME_IN_OPTIONS): _class
     for _, _class in inspect.getmembers(sys.modules[__name__])
     if inspect.isclass(_class)
     and hasattr(_class, "NAME_IN_OPTIONS")

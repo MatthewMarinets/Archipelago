@@ -3,12 +3,13 @@ Contains the data structures that make up a mission order.
 Data in these structures is validated in .options.py and manipulated by .generation.py.
 """
 
-from typing import Callable, Any, Type, TYPE_CHECKING
+from typing import Callable, Any, Type, TYPE_CHECKING, overload, Literal
 from weakref import ref, ReferenceType
 from dataclasses import asdict
 from abc import ABC, abstractmethod
 import logging
 
+from Options import OptionError
 from BaseClasses import Region, CollectionState
 from ..mission_tables import SC2Mission
 from ..item import item_names
@@ -19,6 +20,7 @@ from .slot_data import CampaignSlotData, LayoutSlotData, MissionSlotData
 
 if TYPE_CHECKING:
     from .. import SC2World
+    from .types import CampaignDict, LayoutDict, MissionSlotDict, EntryRuleDict
 
 class MissionOrderNode(ABC):
     parent: ReferenceType['MissionOrderNode'] | None
@@ -79,7 +81,7 @@ class SC2MOGenMissionOrder(MissionOrderNode):
     goal_missions: list['SC2MOGenMission']
     max_depth: int
 
-    def __init__(self, world: 'SC2World', data: dict[str, Any]):
+    def __init__(self, world: 'SC2World', data: dict[str, 'CampaignDict']) -> None:
         self.campaigns = []
         self.sorted_missions = {diff: [] for diff in Difficulty if diff != Difficulty.RELATIVE}
         self.fixed_missions = []
@@ -174,7 +176,7 @@ class SC2MOGenCampaign(MissionOrderNode):
     option_name: str # name of this campaign
     option_display_name: list[str]
     option_unique_name: bool
-    option_entry_rules: list[dict[str, Any]]
+    option_entry_rules: list['EntryRuleDict']
     option_unique_progression_track: int # progressive keys under this campaign and on this track will be changed to a unique track
     option_goal: bool # whether this campaign is required to beat the game
     # minimum difficulty of this campaign
@@ -194,7 +196,13 @@ class SC2MOGenCampaign(MissionOrderNode):
     min_depth: int
     max_depth: int
 
-    def __init__(self, world: 'SC2World', parent: ReferenceType[SC2MOGenMissionOrder], name: str, data: dict[str, Any]):
+    def __init__(
+        self,
+        world: 'SC2World',
+        parent: ReferenceType[SC2MOGenMissionOrder],
+        name: str,
+        data: 'CampaignDict',
+    ) -> None:
         self.parent = parent
         self.important_beat_event = False
         self.option_name = name
@@ -209,14 +217,13 @@ class SC2MOGenCampaign(MissionOrderNode):
         self.layouts = []
         self.exits = []
 
-        for (layout_name, layout_data) in data.items():
-            if isinstance(layout_data, dict):
-                layout = SC2MOGenLayout(world, ref(self), layout_name, layout_data)
-                self.layouts.append(layout)
+        for (layout_name, layout_data) in data["layouts"].items():
+            layout = SC2MOGenLayout(world, ref(self), layout_name, layout_data)
+            self.layouts.append(layout)
 
-                # Collect required missions (marked layouts' exits)
-                if layout.option_exit:
-                    self.exits.extend(layout.exits)
+            # Collect required missions (marked layouts' exits)
+            if layout.option_exit:
+                self.exits.extend(layout.exits)
 
         # If no exits are set, use the last defined layout
         if len(self.exits) == 0:
@@ -287,18 +294,18 @@ class SC2MOGenCampaign(MissionOrderNode):
 
 
 class SC2MOGenLayout(MissionOrderNode):
-    option_name: str # name of this layout
-    option_display_name: list[str] # visual name of this layout
+    option_name: str  # name of this layout
+    option_display_name: list[str]  # visual name of this layout
     option_unique_name: bool
-    option_type: Type[LayoutType] # type of this layout
-    option_size: int # amount of missions in this layout
-    option_goal: bool # whether this layout is required to beat the game
-    option_exit: bool # whether this layout is required to beat its parent campaign
-    option_mission_pool: list[int] # IDs of valid missions for this layout
-    option_missions: list[dict[str, Any]]
+    option_type: str  # type of this layout
+    option_size: int  # amount of missions in this layout
+    option_goal: bool  # whether this layout is required to beat the game
+    option_exit: bool  # whether this layout is required to beat its parent campaign
+    option_mission_pool: set[int]  # IDs of valid missions for this layout
+    option_missions: list['MissionSlotDict']
 
-    option_entry_rules: list[dict[str, Any]]
-    option_unique_progression_track: int # progressive keys under this layout and on this track will be changed to a unique track
+    option_entry_rules: list['EntryRuleDict']
+    option_unique_progression_track: int  # progressive keys under this layout and on this track will be changed to a unique track
 
     # minimum difficulty of this layout
     # 'relative': based on the median distance of the first mission
@@ -317,22 +324,28 @@ class SC2MOGenLayout(MissionOrderNode):
     min_depth: int
     max_depth: int
 
-    def __init__(self, world: 'SC2World', parent: ReferenceType[SC2MOGenCampaign], name: str, data: dict):
+    def __init__(
+        self,
+        world: 'SC2World',
+        parent: ReferenceType[SC2MOGenCampaign],
+        name: str,
+        data: 'LayoutDict'
+    ) -> None:
         self.parent: ReferenceType[SC2MOGenCampaign] = parent
         self.important_beat_event = False
         self.option_name = name
-        self.option_display_name = data.pop("display_name")
-        self.option_unique_name = data.pop("unique_name")
-        self.option_type = data.pop("type")
-        self.option_size = data.pop("size")
-        self.option_goal = data.pop("goal")
-        self.option_exit = data.pop("exit")
-        self.option_mission_pool = data.pop("mission_pool")
-        self.option_missions = data.pop("missions")
-        self.option_entry_rules = data.pop("entry_rules")
-        self.option_unique_progression_track = data.pop("unique_progression_track")
-        self.option_min_difficulty = Difficulty(data.pop("min_difficulty"))
-        self.option_max_difficulty = Difficulty(data.pop("max_difficulty"))
+        self.option_display_name = data["display_name"]
+        self.option_unique_name = data["unique_name"]
+        self.option_type = data["type"]
+        self.option_size = data.get("size")
+        self.option_goal = data["goal"]
+        self.option_exit = data["exit"]
+        self.option_mission_pool = data["mission_pool"]
+        self.option_missions = data["missions"]
+        self.option_entry_rules = data["entry_rules"]
+        self.option_unique_progression_track = data.get("unique_progression_track")
+        self.option_min_difficulty = Difficulty(data["min_difficulty"])
+        self.option_max_difficulty = Difficulty(data["max_difficulty"])
         self.missions = []
         self.entrances = []
         self.exits = []
@@ -343,10 +356,8 @@ class SC2MOGenLayout(MissionOrderNode):
 
         # Build base layout
         from . import layout_types
-        self.layout_type: LayoutType = getattr(layout_types, self.option_type)(self.option_size)
-        unused = self.layout_type.set_options(data)
-        if len(unused) > 0:
-            logging.warning(f"SC2 ({world.player_name}): Layout \"{self.option_name}\" has unknown options: {list(unused.keys())}")
+        self.layout_type: LayoutType = layout_types.LAYOUT_TYPE_NAME_TO_CLASS[self.option_type](self.option_size)
+        self.layout_type.set_options(data)
         mission_factory = lambda: SC2MOGenMission(ref(self), set(self.option_mission_pool))
         self.missions = self.layout_type.make_slots(mission_factory)
 
@@ -415,7 +426,7 @@ class SC2MOGenLayout(MissionOrderNode):
                         prev_mission.next.remove(mission)
                     mission.prev.clear()
         if all_empty:
-            raise Exception(f"Layout \"{self.option_name}\" only contains empty mission slots.")
+            raise OptionError(f"Layout \"{self.option_name}\" only contains empty mission slots.")
 
     def is_beaten(self, beaten_missions: set['SC2MOGenMission']) -> bool:
         return beaten_missions.issuperset(self.exits)
@@ -425,6 +436,11 @@ class SC2MOGenLayout(MissionOrderNode):
 
     def is_unlocked(self, beaten_missions: set['SC2MOGenMission'], in_region_creation = False) -> bool:
         return self.entry_rule.is_fulfilled(beaten_missions, in_region_creation)
+
+    @overload
+    def resolve_index_term(self, term: str | int, *, ignore_out_of_bounds: bool = True, reject_none: Literal[False]) -> set[int] | None: ...
+    @overload
+    def resolve_index_term(self, term: str | int, *, ignore_out_of_bounds: bool = True, reject_none: Literal[True] = True) -> set[int]: ...
 
     def resolve_index_term(self, term: str | int, *, ignore_out_of_bounds: bool = True, reject_none: bool = True) -> set[int] | None:
         try:
@@ -439,7 +455,7 @@ class SC2MOGenLayout(MissionOrderNode):
             else:
                 result = self.layout_type.parse_index(term)
                 if result is None and reject_none:
-                    raise ValueError(f"Layout \"{self.option_name}\" could not resolve mission index term \"{term}\".")
+                    raise OptionError(f"Layout \"{self.option_name}\" could not resolve mission index term \"{term}\".")
         if ignore_out_of_bounds:
             result = [index for index in result if index >= 0 and index < len(self.missions)]
         return result
@@ -548,7 +564,7 @@ class SC2MOGenMission(MissionOrderNode):
         self.option_victory_cache = -1
         self.option_heroes = None
 
-    def update_with_data(self, data: dict) -> None:
+    def update_with_data(self, data: 'MissionSlotDict') -> None:
         self.option_goal = data.get("goal", self.option_goal)
         self.option_entrance = data.get("entrance", self.option_entrance)
         self.option_exit = data.get("exit", self.option_exit)
