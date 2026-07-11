@@ -145,8 +145,7 @@ item_descriptions = {
     """),
     item_names.BANSHEE: "Tactical-strike aircraft.",
     item_names.BATTLECRUISER: "Powerful warship.",
-    item_names.GHOST:
-        "Infiltration unit. Can use Snipe and Cloak abilities. Can also call down Tactical Nukes.",
+    item_names.GHOST: "Infiltration unit. Can use Snipe and Cloak abilities. Can also call down Tactical Nukes.",
     item_names.SPECTRE: inspect.cleandoc("""
         Infiltration unit. Can use Ultrasonic Pulse, Psionic Lash, and Cloak.
         Can also call down Tactical Nukes.
@@ -304,10 +303,7 @@ item_descriptions = {
         Repositions Siege Tank to a target location.
         Can be used in either mode and to jump up and down cliffs.
     """),
-    item_names.SIEGE_TANK_SPIDER_MINES: inspect.cleandoc("""
-        Allows Siege Tanks to lay Spider Mines.
-        Lays 3 Spider Mines at once. 3 charges.
-    """),
+    item_names.SIEGE_TANK_SPIDER_MINES: "Allows Siege Tanks to lay Spider Mines. Lays 3 Spider Mines at once. 3 charges.",
     item_names.SIEGE_TANK_SMART_SERVOS: SMART_SERVOS_DESCRIPTION,
     item_names.SIEGE_TANK_GRADUATING_RANGE: inspect.cleandoc("""
         Increases the Siege Tank's attack range by 1 every 3 seconds while in Siege Mode,
@@ -333,7 +329,6 @@ item_descriptions = {
         Allows Warhounds to enter Brawler mode.
         Grants damage reduction and a stronger melee attack.
         Deactivates the Railgun.
-
     """),
     item_names.WARHOUND_JUMP_JETS:inspect.cleandoc("""
         Allows Warhounds to jump towards enemies.
@@ -349,10 +344,7 @@ item_descriptions = {
         Level 2: Siege Tanks in Siege Mode can attack air units while transported by a Medivac.
     """),
     item_names.SIEGE_TANK_ALLTERRAIN_TREADS: "Increases movement speed of Siege Tanks in Tank Mode.",
-    item_names.MEDIVAC_RAPID_REIGNITION_SYSTEMS: inspect.cleandoc("""
-        Slightly increases Medivac movement speed.
-        Reduces Medivac's Afterburners ability cooldown.
-    """),
+    item_names.MEDIVAC_RAPID_REIGNITION_SYSTEMS: "Slightly increases Medivac movement speed. Reduces Medivac's Afterburners ability cooldown.",
     item_names.BATTLECRUISER_BEHEMOTH_REACTOR: "All Battlecruiser spells require 25 less energy to cast.",
     item_names.THOR_RAPID_RELOAD: "Increases Thor's ground attack speed.",
     item_names.LIBERATOR_GUERILLA_MISSILES: "Liberators in Fighter Mode apply an attack and movement debuff to enemies they attack.",
@@ -443,9 +435,7 @@ item_descriptions = {
     item_names.BANSHEE_HYPERFLIGHT_ROTORS: "Increases Banshee movement speed.",
     item_names.BANSHEE_LASER_TARGETING_SYSTEM: LASER_TARGETING_SYSTEMS_DESCRIPTION,
     item_names.BANSHEE_INTERNAL_TECH_MODULE: INTERNAL_TECH_MODULE_DESCRIPTION_TEMPLATE.format("Banshees", "Starport"),
-    item_names.BATTLECRUISER_TACTICAL_JUMP: inspect.cleandoc("""
-        Allows Battlecruisers to warp to a target location anywhere on the map.
-    """),
+    item_names.BATTLECRUISER_TACTICAL_JUMP: "Allows Battlecruisers to warp to a target location anywhere on the map.",
     item_names.BATTLECRUISER_CLOAK: CLOAK_DESCRIPTION_TEMPLATE.format("Battlecruisers"),
     item_names.BATTLECRUISER_ATX_LASER_BATTERY: inspect.cleandoc("""
         Battlecruisers can attack while moving,
@@ -465,19 +455,13 @@ item_descriptions = {
     """),
     item_names.RAVEN_BIO_MECHANICAL_REPAIR_DRONE: "Spell. Deploys a drone that can heal biological or mechanical units.",
     item_names.RAVEN_SPIDER_MINES: "Spell. Deploys 3 Spider Mines to a target location.",
-    item_names.RAVEN_RAILGUN_TURRET: inspect.cleandoc("""
-        Spell. Allows Ravens to deploy an advanced Auto-Turret, that can attack enemy ground units in a straight line.
-    """),
+    item_names.RAVEN_RAILGUN_TURRET: "Spell. Allows Ravens to deploy an advanced Auto-Turret, that can attack enemy ground units in a straight line.",
     item_names.RAVEN_HUNTER_SEEKER_WEAPON: "Allows Ravens to attack with a Hunter-Seeker weapon.",
-    item_names.RAVEN_INTERFERENCE_MATRIX: inspect.cleandoc("""
-        Spell. Target enemy Mechanical or Psionic unit can't attack or use abilities for a short duration.
-    """),
+    item_names.RAVEN_INTERFERENCE_MATRIX: "Spell. Target enemy Mechanical or Psionic unit can't attack or use abilities for a short duration.",
     item_names.RAVEN_ANTI_ARMOR_MISSILE: "Spell. Decreases target and nearby enemy units armor by 2.",
     item_names.RAVEN_INTERNAL_TECH_MODULE: INTERNAL_TECH_MODULE_DESCRIPTION_TEMPLATE.format("Ravens", "Starport"),
     item_names.SCIENCE_VESSEL_EMP_SHOCKWAVE: "Spell. Depletes all energy and shields of all units in a target area.",
-    item_names.SCIENCE_VESSEL_DEFENSIVE_MATRIX: inspect.cleandoc("""
-        Spell. Provides a target unit with a defensive barrier that can absorb up to 250 damage.
-    """),
+    item_names.SCIENCE_VESSEL_DEFENSIVE_MATRIX: "Spell. Provides a target unit with a defensive barrier that can absorb up to 250 damage.",
     item_names.CYCLONE_TARGETING_OPTICS: "Increases Cyclone Lock On casting range and the range while Locked On.",
     item_names.CYCLONE_RAPID_FIRE_LAUNCHERS: "The first 12 shots of Lock On are fired more quickly.",
     item_names.LIBERATOR_CLOAK: CLOAK_DESCRIPTION_TEMPLATE.format("Liberators"),
@@ -496,9 +480,7 @@ item_descriptions = {
     item_names.LIBERATOR_SMART_SERVOS: SMART_SERVOS_DESCRIPTION,
     item_names.LIBERATOR_RESOURCE_EFFICIENCY: _get_resource_efficiency_desc(item_names.LIBERATOR),
     item_names.HERCULES_INTERNAL_FUSION_MODULE: "Hercules can be trained from a Starport without having a Fusion Core.",
-    item_names.HERCULES_TACTICAL_JUMP: inspect.cleandoc("""
-        Allows Hercules to warp to a target location anywhere on the map.
-    """),
+    item_names.HERCULES_TACTICAL_JUMP: "Allows Hercules to warp to a target location anywhere on the map.",
     item_names.PLANETARY_FORTRESS_PROGRESSIVE_AUGMENTED_THRUSTERS: inspect.cleandoc("""
         Level 1: Lift Off - Planetary Fortress can lift off.
         Level 2: Armament Stabilizers - Planetary Fortress can attack while lifted off.
@@ -510,9 +492,7 @@ item_descriptions = {
     item_names.PREDATOR_ADAPTIVE_DEFENSES: "Predators gain a shield that halves incoming ranged and splash damage while active.",
     item_names.BATTLECRUISER_BEHEMOTH_PLATING: "Increases Battlecruiser armor by 2.",
     item_names.BATTLECRUISER_MOIRAI_IMPULSE_DRIVE: "Increases Battlecruiser movement speed.",
-    item_names.PLANETARY_FORTRESS_ORBITAL_MODULE: inspect.cleandoc("""
-        Allows Planetary Fortresses to use Scanner Sweep, MULE, and Extra Supplies if those abilities are owned.
-    """),
+    item_names.PLANETARY_FORTRESS_ORBITAL_MODULE: "Allows Planetary Fortresses to use Scanner Sweep, MULE, and Extra Supplies if those abilities are owned.",
     item_names.DEVASTATOR_TURRET_CONCUSSIVE_GRENADES: "Devastator Turrets slow enemies they hit. Does not stack with Marauder Concussive Shells.",
     item_names.DEVASTATOR_TURRET_ANTI_ARMOR_MUNITIONS: "Increases Devastator Turret damage to armored targets by 10.",
     item_names.DEVASTATOR_TURRET_RESOURCE_EFFICIENCY: _get_resource_efficiency_desc(item_names.DEVASTATOR_TURRET),
