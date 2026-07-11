@@ -416,7 +416,7 @@ item_descriptions = {
     item_names.LIBERATOR_ADVANCED_BALLISTICS: "Increases Liberator range by 3 in Defender Mode.",
     item_names.LIBERATOR_RAID_ARTILLERY: "Allows Liberators to attack structures while in Defender Mode.",
     item_names.WIDOW_MINE_DRILLING_CLAWS: "Allows Widow Mines to burrow and unburrow faster.",
-    item_names.WIDOW_MINE_CONCEALMENT: "Burrowed Widow Mines are no longer revealed when the Sentinel Missile is on cooldown.",
+    item_names.WIDOW_MINE_LINGERING_CONCEALMENT: "Widow Mines stay cloaked for 10s after unburrowing.",
     item_names.WIDOW_MINE_DEMOLITION_PAYLOAD: "Allows Widow Mines to attack and damage structures.",
     item_names.MEDIVAC_ADVANCED_CLOAKING_FIELD: "Medivacs are permanently cloaked.",
     item_names.WRAITH_TRIGGER_OVERRIDE: "Wraith attack speed increases by 10% with each attack, up to a maximum of 100%.",

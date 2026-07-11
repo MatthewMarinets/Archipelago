@@ -535,7 +535,7 @@ item_table = {
     item_names.WIDOW_MINE_DRILLING_CLAWS:
         ItemData(328 + SC2WOL_ITEM_ID_OFFSET, TerranItemType.Armory_4, 9, SC2Race.TERRAN,
                  parent=item_names.WIDOW_MINE),
-    item_names.WIDOW_MINE_CONCEALMENT:
+    item_names.WIDOW_MINE_LINGERING_CONCEALMENT:
         ItemData(329 + SC2WOL_ITEM_ID_OFFSET, TerranItemType.Armory_4, 10, SC2Race.TERRAN,
                  classification=ItemClassification.progression, parent=item_names.WIDOW_MINE),
     item_names.MEDIVAC_ADVANCED_CLOAKING_FIELD:
