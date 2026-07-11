@@ -1535,7 +1535,7 @@ item_table = {
         ItemData(390 + SC2HOTS_ITEM_ID_OFFSET, ZergItemType.Mutation_5, 17, SC2Race.ZERG, parent=item_names.BULLFROG),
     item_names.SPORE_CRAWLER_BIO_BONUS:
         ItemData(391 + SC2HOTS_ITEM_ID_OFFSET, ZergItemType.Mutation_5, 18, SC2Race.ZERG, parent=item_names.SPORE_CRAWLER),
-    item_names.CORRUPTOR_ACID_SPLASH:
+    item_names.CORRUPTOR_SPOREFALL:
         ItemData(392 + SC2HOTS_ITEM_ID_OFFSET, ZergItemType.Mutation_5, 19, SC2Race.ZERG, parent=item_names.CORRUPTOR),
     item_names.IMPALER_DISTRIBUTED_ATTACK:
         ItemData(393 + SC2HOTS_ITEM_ID_OFFSET, ZergItemType.Mutation_5, 20, SC2Race.ZERG, parent=item_names.IMPALER),
