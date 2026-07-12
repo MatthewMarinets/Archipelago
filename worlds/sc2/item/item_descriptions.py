@@ -846,7 +846,7 @@ item_descriptions = {
     item_names.SPIRE_MATURATION: "Spires are replaced with Greater Spires, and Drones can now build Greater Spires directly.",
     item_names.MACROSCOPIC_RECUPERATION: "Zerg structures regenerate health rapidly while on creep and out of combat.\nDoes not apply to uprooted structures, or structures with the Mechanical tag.",
     item_names.BIOMECHANICAL_STOCKPILING: "Infested Factories and Starports can store 3 additional unit charges.",
-    item_names.BROODLING_SPORE_SATURATION: "Zerg buildings release twice as many broodlings on death. Zerg defensive structures release 4 broodlings on death.",
+    item_names.BROODLING_PACKING: "Zerg buildings release twice as many broodlings on death. Zerg defensive structures release 4 broodlings on death.",
     item_names.SPAWN_SPLITTERLINGS: "Zerg buildings release splitterlings alongside broodlings on death.",
     item_names.UNRESTRICTED_MUTATION: "Zerg Mercenary units are no longer limited by charges.",
     item_names.CELL_DIVISION: "Adds additional units to Zerg Mercenary calldowns.",
