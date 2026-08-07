@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Callable, TYPE_CHECKING, Any, ClassVar, Type
+from typing import Callable, TYPE_CHECKING, ClassVar, Type
 import math
 from abc import ABC, abstractmethod
 import inspect
@@ -21,7 +21,7 @@ class LayoutType(ABC):
 
     def set_options(self, options: 'LayoutDict') -> None:
         """Get type-specific options from the provided dict. Should return unused values."""
-        return None
+        return
 
     @abstractmethod
     def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> list[SC2MOGenMission]:

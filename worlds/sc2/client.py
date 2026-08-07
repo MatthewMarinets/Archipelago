@@ -19,7 +19,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, TYPE_CHECKING, NamedTuple, Type, Sequence, Iterable
+from typing import Any, NamedTuple, Type, Sequence, Iterable
 
 # CommonClient import first to trigger ModuleUpdater
 from CommonClient import CommonContext, server_loop, ClientCommandProcessor, gui_enabled, get_base_parser, handle_url_arg
@@ -41,7 +41,7 @@ from .options import (
 )
 from .mission_order.slot_data import CampaignSlotData, LayoutSlotData, MissionSlotData, MissionOrderObjectSlotData
 from .mission_order.entry_rules import SubRuleRuleData, CountMissionsRuleData, MissionEntryRules
-from .tables import HeroOptions, HeroFlag
+from .tables import HeroFlag
 from .apclient.transfer_data import worker_units
 from . import SC2World
 from .apclient import banks, user_paths, game_client
@@ -119,7 +119,7 @@ class ConfigurableOptionInfo(NamedTuple):
     can_break_logic: bool = False
 
 
-@dataclass
+@dataclass(slots=True)
 class ConfigurableSettingInfo:
     setting_name: str
     option_class: Type[coresettings.Bool] | Type[str] | Type[int]

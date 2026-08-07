@@ -4,7 +4,7 @@ Incoming data is validated to match specifications in .options.py.
 The functions here are called from ..regions.py.
 """
 
-from typing import Any, Callable, TYPE_CHECKING
+from typing import Any, Callable, TYPE_CHECKING, cast
 import logging
 from dataclasses import dataclass, field
 from collections import Counter
@@ -96,7 +96,7 @@ class LocationData:
             return self.info.id
 
 
-def resolve_unlocks(mission_order: SC2MOGenMissionOrder):
+def resolve_unlocks(mission_order: SC2MOGenMissionOrder) -> None:
     """Parses a mission order's entry rule dicts into entry rule objects."""
     rolling_rule_id = 0
     for campaign in mission_order.campaigns:
@@ -104,21 +104,30 @@ def resolve_unlocks(mission_order: SC2MOGenMissionOrder):
             "rules": campaign.option_entry_rules,
             "amount": -1
         }
-        campaign.entry_rule = _dict_to_entry_rule(mission_order, entry_rule, campaign, rolling_rule_id)
+        campaign.entry_rule = cast(
+            SubRuleEntryRule,
+            _dict_to_entry_rule(mission_order, entry_rule, campaign, rolling_rule_id)
+        )
         rolling_rule_id += 1
         for layout in campaign.layouts:
             entry_rule = {
                 "rules": layout.option_entry_rules,
                 "amount": -1
             }
-            layout.entry_rule = _dict_to_entry_rule(mission_order, entry_rule, layout, rolling_rule_id)
+            layout.entry_rule = cast(
+                SubRuleEntryRule,
+                _dict_to_entry_rule(mission_order, entry_rule, layout, rolling_rule_id)
+            )
             rolling_rule_id += 1
             for mission in layout.missions:
                 entry_rule = {
                     "rules": mission.option_entry_rules,
                     "amount": -1
                 }
-                mission.entry_rule = _dict_to_entry_rule(mission_order, entry_rule, mission, rolling_rule_id)
+                mission.entry_rule = cast(
+                    SubRuleEntryRule,
+                    _dict_to_entry_rule(mission_order, entry_rule, mission, rolling_rule_id)
+                )
                 rolling_rule_id += 1
                 # Manually make a rule for prev missions
                 if len(mission.prev) > 0:

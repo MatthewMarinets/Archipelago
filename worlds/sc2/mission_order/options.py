@@ -872,7 +872,7 @@ def _resolve_mission_spec(option_name: str, option_value: Any) -> 'MissionSlotDi
             f"Allowed keys are {MISSION_SLOT_KEYS}"
         )
 
-    mission_index = (
+    mission_index: list[str | int] = (
         ResolveOption(option_name, "index")
         .fallback_from_dict(option_value)
         .listify()
@@ -965,7 +965,7 @@ def _resolve_mission_spec(option_name: str, option_value: Any) -> 'MissionSlotDi
     if empty is not None:
         result["empty"] = empty
     if next_missions is not None:
-        result["next"] = next_missions
+        result["next"] = cast(list[int | str], next_missions)
     if entry_rule_specs is not None:
         result["entry_rules"] = entry_rules
     if mission_pool_spec is not None:

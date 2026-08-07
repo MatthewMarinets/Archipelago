@@ -14,7 +14,7 @@ from BaseClasses import Region, CollectionState
 from ..mission_tables import SC2Mission
 from ..item import item_names
 from .layout_types import LayoutType
-from .entry_rules import SubRuleEntryRule, ItemEntryRule
+from .entry_rules import SubRuleEntryRule, ItemEntryRule, EntryRule
 from .mission_pools import Difficulty
 from .slot_data import CampaignSlotData, LayoutSlotData, MissionSlotData
 
@@ -72,7 +72,7 @@ class SC2MOGenMissionOrder(MissionOrderNode):
     The top-level data structure for mission orders.
     """
     campaigns: list['SC2MOGenCampaign']
-    sorted_missions: dict[Difficulty, list['SC2MOGenMission']]
+    sorted_missions: dict[Difficulty | int, list['SC2MOGenMission']]
     """All mission slots in the mission order sorted by their difficulty, but not their depth."""
     fixed_missions: list['SC2MOGenMission']
     """All mission slots that have a plando'd mission."""
@@ -532,8 +532,8 @@ class SC2MOGenMission(MissionOrderNode):
     option_exit: bool  # whether this mission is required to beat its parent layout
     option_empty: bool  # whether this slot contains a mission at all
     option_next: list[int | str] | None  # indices of internally connected missions
-    option_entry_rules: list[dict[str, Any]]
-    option_difficulty: Difficulty  # difficulty pool this mission pulls from
+    option_entry_rules: list['EntryRuleDict']
+    option_difficulty: Difficulty | int  # difficulty pool this mission pulls from
     option_mission_pool: set[int]  # Allowed mission IDs for this slot
     option_victory_cache: int  # Number of victory cache locations tied to the mission name
     option_heroes: list[str] | None  # Exact heroes assigned to this slot, or None to use normal hero presence

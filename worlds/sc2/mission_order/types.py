@@ -96,6 +96,13 @@ class LayoutPresetDict(TypedDict, total=False):
     max_difficulty: DifficultyType
     # missions
     missions: list[MissionSlotPresetDict]
+    # layout type-specific
+    width: int
+    two_start_positions: bool
+    canvas: list[str]
+    jump_distance_orthogonal: int
+    jump_distance_diagonal: int
+    spacer: int
 
 
 class LayoutDict(TypedDict):
@@ -138,6 +145,8 @@ CampaignPresetDict = TypedDict("CampaignPresetDict", {
     "preset": str,
     "global": dict,
     # Only if there is a preset
+    "size": int,
+    "two_start_positions": bool,
     "missions": Literal["random", "vanilla_shuffled", "vanilla"],
     "shuffle_raceswaps": bool,
     "keys": str,
