@@ -24,7 +24,7 @@ class LayoutType(ABC):
         return
 
     @abstractmethod
-    def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> list[SC2MOGenMission]:
+    def make_slots(self, mission_factory: Callable[[int], SC2MOGenMission]) -> list[SC2MOGenMission]:
         """Use the provided `Callable` to create a one-dimensional list of mission slots and set up initial settings and connections.
 
         This should include at least one entrance and exit."""
@@ -83,8 +83,8 @@ class Column(LayoutType):
     # 1
     # 2
 
-    def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> list[SC2MOGenMission]:
-        missions = [mission_factory() for _ in range(self.size)]
+    def make_slots(self, mission_factory: Callable[[int], SC2MOGenMission]) -> list[SC2MOGenMission]:
+        missions = [mission_factory(index) for index in range(self.size)]
         missions[0].option_entrance = True
         missions[-1].option_exit = True
         for i in range(self.size - 1):
@@ -175,8 +175,8 @@ class Grid(LayoutType):
             0 <= y < self.height
         )
 
-    def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> list[SC2MOGenMission]:
-        missions = [mission_factory() for _ in range(self.width * self.height)]
+    def make_slots(self, mission_factory: Callable[[int], SC2MOGenMission]) -> list[SC2MOGenMission]:
+        missions = [mission_factory(index) for index in range(self.width * self.height)]
         if self.two_start_positions:
             missions[0].option_empty = True
             missions[1].option_entrance = True
@@ -303,7 +303,7 @@ class Canvas(Grid):
             for (char_idx, char) in enumerate(line):
                 self.groups.setdefault(char, []).append(self.get_grid_index(char_idx, line_idx))
 
-    def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> list[SC2MOGenMission]:
+    def make_slots(self, mission_factory: Callable[[int], SC2MOGenMission]) -> list[SC2MOGenMission]:
         missions = super().make_slots(mission_factory)
         missions[0].option_entrance = False
         missions[-1].option_exit = False
@@ -416,8 +416,8 @@ class Hopscotch(LayoutType):
         spacer: int = options.get("spacer", 2)
         self.spacer = max(spacer, 1)
 
-    def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> list[SC2MOGenMission]:
-        slots = [mission_factory() for _ in range(self.size)]
+    def make_slots(self, mission_factory: Callable[[int], SC2MOGenMission]) -> list[SC2MOGenMission]:
+        slots = [mission_factory(index) for index in range(self.size)]
         if self.two_start_positions:
             slots[0].option_empty = True
             slots[1].option_entrance = True
@@ -527,8 +527,8 @@ class Gauntlet(LayoutType):
         width: int = options.get("width", 7)
         self.width = min(max(width, 4), self.size)
 
-    def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> list[SC2MOGenMission]:
-        missions = [mission_factory() for _ in range(self.size)]
+    def make_slots(self, mission_factory: Callable[[int], SC2MOGenMission]) -> list[SC2MOGenMission]:
+        missions = [mission_factory(index) for index in range(self.size)]
         missions[0].option_entrance = True
         missions[-1].option_exit = True
         for i in range(self.size - 1):
@@ -569,8 +569,8 @@ class Blitz(LayoutType):
         else:
             self.width = min(self.size, width)
 
-    def make_slots(self, mission_factory: Callable[[], SC2MOGenMission]) -> list[SC2MOGenMission]:
-        slots = [mission_factory() for _ in range(self.size)]
+    def make_slots(self, mission_factory: Callable[[int], SC2MOGenMission]) -> list[SC2MOGenMission]:
+        slots = [mission_factory(index) for index in range(self.size)]
         for idx in range(self.width):
             slots[idx].option_entrance = True
 

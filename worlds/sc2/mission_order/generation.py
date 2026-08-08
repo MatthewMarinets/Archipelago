@@ -21,7 +21,14 @@ from ..mission_tables import (
 from ..item.item_tables import named_layout_key_item_table, named_campaign_key_item_table
 from ..item import item_names
 from ..tables import HeroFlag, HeroOptions, StabilityOptions
-from .nodes import MissionOrderNode, SC2MOGenMissionOrder, SC2MOGenCampaign, SC2MOGenLayout, SC2MOGenMission
+from .nodes import (
+    MissionOrderNode,
+    SC2MOGenMissionOrder,
+    SC2MOGenCampaign,
+    SC2MOGenLayout,
+    SC2MOGenMission,
+    parent_id,
+)
 from .entry_rules import EntryRule, SubRuleEntryRule, ItemEntryRule, CountMissionsEntryRule, BeatMissionsEntryRule
 from .mission_pools import (
     SC2MOGenMissionPools, Difficulty, modified_difficulty_thresholds, STANDARD_DIFFICULTY_FILL_ORDER
@@ -191,35 +198,42 @@ def _resolve_address(mission_order: SC2MOGenMissionOrder, address: str, start_no
     """Tries to find a node in the mission order by following the given address."""
     if address.startswith("../") or address == "..":
         # Relative address, starts from searching object
-        cursor = start_node
+        cursor = start_node.id
     else:
         # Absolute address, starts from the top
-        cursor = mission_order
+        cursor = mission_order.id
     address_so_far = ""
+    id_to_node = mission_order.get_id_to_node()
     for term in address.split("/"):
         if len(address_so_far) > 0:
             address_so_far += "/"
         address_so_far += term
         if term == "..":
-            cursor = cursor.get_parent(address_so_far, address)
+            cursor = parent_id(cursor)
         else:
-            result = cursor.search(term)
-            if result is None:
-                raise ValueError(f"Address \"{address_so_far}\" (from \"{address}\") tried to find a child for a mission.")
-            if len(result) == 0:
-                raise ValueError(f"Address \"{address_so_far}\" (from \"{address}\") could not find a {cursor.child_type_name()}.")
-            if len(result) > 1:
+            element = id_to_node.get(cursor)
+            if element is None:
+                raise OptionError(f"Address \"{address_so_far}\" (from \"{address}\") points to a node that doesn't exist")
+            search_result = element.search(term)
+            if search_result is None:
+                raise OptionError(f"Address \"{address_so_far}\" (from \"{address}\") tried to find a child for a mission.")
+            if len(search_result) == 0:
+                raise OptionError(f"Address \"{address_so_far}\" (from \"{address}\") could not find a child node.")
+            if len(search_result) > 1:
                 # Layouts are allowed to end with multiple missions via an index function
-                if type(result[0]) == SC2MOGenMission and address_so_far == address:
-                    return result
-                raise ValueError((f"Address \"{address_so_far}\" (from \"{address}\") found more than one {cursor.child_type_name()}."))
-            cursor = result[0]
-        if cursor == start_node:
-            raise ValueError(
+                if type(search_result[0]) == SC2MOGenMission and address_so_far == address:
+                    return search_result
+                raise OptionError((f"Address \"{address_so_far}\" (from \"{address}\") found more than one child node."))
+            cursor = search_result[0].id
+        if cursor == start_node.id:
+            raise OptionError(
                 f"Address \"{address_so_far}\" (from \"{address}\") returned to original object. "
                 "This is not allowed to avoid circular requirements."
             )
-    return [cursor]
+    result = id_to_node.get(cursor)
+    if result is None:
+        return []
+    return [result]
 
 
 ########################
@@ -391,6 +405,7 @@ def fill_missions(
     ]
     locked_ids = [lookup_name_to_mission[mission].id for mission in locked_missions]
     prefer_close_difficulty = world.options.difficulty_curve.value == world.options.difficulty_curve.option_standard
+    id_to_node = mission_order.get_id_to_node()
 
     def set_mission_in_slot(slot: SC2MOGenMission, mission: SC2Mission):
         slot.mission = mission
@@ -403,7 +418,10 @@ def fill_missions(
         locked_ids = [locked for locked in locked_ids if locked != mission_id]
         mission = lookup_id_to_mission[mission_id]
         if mission in mission_pools.get_used_missions():
-            raise ValueError(f"Mission slot at address \"{mission_slot.get_address_to_node()}\" tried to plando an already plando'd mission.")
+            raise OptionError(
+                f"Mission slot at address \"{mission_slot.get_address_to_node(id_to_node)}\" "
+                "tried to plando an already plando'd mission."
+            )
         mission_pools.pull_specific_mission(mission)
         set_mission_in_slot(mission_slot, mission)
         regions.append(mission_slot.region)
@@ -451,28 +469,32 @@ def fill_missions(
     # Pick goal missions first with stricter difficulty matching, and starting with harder goals
     for goal_slot in sorted_goals:
         try:
-            mission = mission_pools.pull_random_mission(world, goal_slot, prefer_close_difficulty=True)
+            mission = mission_pools.pull_random_mission(
+                world, goal_slot, id_to_node, prefer_close_difficulty=True
+            )
             set_mission_in_slot(goal_slot, mission)
             regions.append(goal_slot.region)
             all_slots.remove(goal_slot)
         except IndexError:
             raise IndexError(
-                f"Slot at address \"{goal_slot.get_address_to_node()}\" ran out of possible missions to place "
-                f"with {len(all_slots)} empty slots remaining."
+                f"Slot at address \"{goal_slot.get_address_to_node(id_to_node)}\" "
+                f"ran out of possible missions to place with {len(all_slots)} empty slots remaining."
             )
 
     # Pick random missions
     remaining_count = len(all_slots)
     for mission_slot in all_slots:
         try:
-            mission = mission_pools.pull_random_mission(world, mission_slot, prefer_close_difficulty=prefer_close_difficulty)
+            mission = mission_pools.pull_random_mission(
+                world, mission_slot, id_to_node, prefer_close_difficulty=prefer_close_difficulty
+            )
             set_mission_in_slot(mission_slot, mission)
             regions.append(mission_slot.region)
             remaining_count -= 1
         except IndexError:
             raise IndexError(
-                f"Slot at address \"{mission_slot.get_address_to_node()}\" ran out of possible missions to place "
-                f"with {remaining_count} empty slots remaining."
+                f"Slot at address \"{mission_slot.get_address_to_node(id_to_node)}\" "
+                f"ran out of possible missions to place with {remaining_count} empty slots remaining."
             )
 
     world.multiworld.regions += regions
@@ -1180,8 +1202,9 @@ def resolve_generic_keys(mission_order: SC2MOGenMissionOrder) -> None:
     layout_numbered_keys = 1
     campaign_numbered_keys = 1
     progression_tracks: dict[int, list[tuple[MissionOrderNode, ItemEntryRule]]] = {}
+    id_to_node = mission_order.get_id_to_node()
     for (node, item_rules) in mission_order.keys_to_resolve.items():
-        key_name = node.get_key_name()
+        key_name = node.get_key_name(id_to_node)
         # Generic keys in mission slots should always resolve to an existing key
         # Layouts and campaigns may need to be switched for numbered keys
         if isinstance(node, SC2MOGenLayout) and key_name not in named_layout_key_item_table:
@@ -1244,14 +1267,16 @@ def resolve_generic_keys(mission_order: SC2MOGenMissionOrder) -> None:
         # Sort keys to change by layout
         new_unique_tracks: dict[MissionOrderNode, list[tuple[MissionOrderNode, ItemEntryRule]]] = {}
         for (node, item_rule) in progression_tracks[track]:
+            parent = cast(SC2MOGenLayout | SC2MOGenCampaign, id_to_node[node.id[:1]])
             if isinstance(node, SC2MOGenMission):
                 # Unique tracks for layouts take priority over campaigns
-                if node.parent().option_unique_progression_track == track:
-                    new_unique_tracks.setdefault(node.parent(), []).append((node, item_rule))
-                elif node.parent().parent().option_unique_progression_track == track:
-                    new_unique_tracks.setdefault(node.parent().parent(), []).append((node, item_rule))
-            elif isinstance(node, SC2MOGenLayout) and node.parent().option_unique_progression_track == track:
-                new_unique_tracks.setdefault(node.parent(), []).append((node, item_rule))
+                grandparent = cast(SC2MOGenCampaign, id_to_node[node.id[:2]])
+                if parent.option_unique_progression_track == track:
+                    new_unique_tracks.setdefault(parent, []).append((node, item_rule))
+                elif grandparent.option_unique_progression_track == track:
+                    new_unique_tracks.setdefault(grandparent, []).append((node, item_rule))
+            elif isinstance(parent, SC2MOGenCampaign) and parent.option_unique_progression_track == track:
+                new_unique_tracks.setdefault(parent, []).append((node, item_rule))
         # Remove found keys from their original progression track
         for (container_node, rule_list) in new_unique_tracks.items():
             for node_and_rule in rule_list:
@@ -1272,7 +1297,7 @@ def resolve_generic_keys(mission_order: SC2MOGenMissionOrder) -> None:
                     f"{key}: {item_rule.items_to_check[key]}" for key in find_progressive_keys(item_rule, track)
                 )
         affected_key_list_string = "\n- " + "\n- ".join(
-            f"{node.get_address_to_node()}: {affected_keys}"
+            f"{node.get_address_to_node(id_to_node)}: {affected_keys}"
             for (node, affected_keys) in affected_key_list.items()
         )
         raise ValueError(
@@ -1289,11 +1314,12 @@ def resolve_generic_keys(mission_order: SC2MOGenMissionOrder) -> None:
         while next_free in progression_tracks:
             next_free += 1
         container_node = nodes_to_assign.pop(0)
+        # It's guaranteed by the sorting above that the container is either a layout or a campaign
+        assert isinstance(container_node, (SC2MOGenLayout, SC2MOGenCampaign))
         progression_tracks[next_free] = want_unique.pop(container_node)
         # Replace the affected keys in nodes with their correct counterparts
         key_name = f"{GENERIC_PROGRESSIVE_KEY_NAME} {next_free}"
         for (node, item_rule) in progression_tracks[next_free]:
-            # It's guaranteed by the sorting above that the container is either a layout or a campaign
             replace_progressive_keys(item_rule, container_node.option_unique_progression_track, key_name, 1)
 
     # Give progressive keys a more fitting name if there's only one track and they all apply to the same type of node

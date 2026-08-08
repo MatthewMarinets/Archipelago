@@ -3,11 +3,8 @@ Contains the data structures that make up a mission order.
 Data in these structures is validated in .options.py and manipulated by .generation.py.
 """
 
-from typing import Callable, Any, Type, TYPE_CHECKING, overload, Literal
-from weakref import ref, ReferenceType
+from typing import Callable, Any, TYPE_CHECKING, overload, Literal, cast, Protocol
 from dataclasses import asdict
-from abc import ABC, abstractmethod
-import logging
 
 from Options import OptionError
 from BaseClasses import Region, CollectionState
@@ -22,52 +19,37 @@ if TYPE_CHECKING:
     from .. import SC2World
     from .types import CampaignDict, LayoutDict, MissionSlotDict, EntryRuleDict
 
-class MissionOrderNode(ABC):
-    parent: ReferenceType['MissionOrderNode'] | None
+
+def parent_id(base_id: tuple[int, ...]) -> tuple[int, ...]:
+    if not base_id:
+        return ()
+    return base_id[:-1]
+
+
+class MissionOrderNode(Protocol):
+    id: tuple[int, ...]
     important_beat_event: bool
 
-    def get_parent(self, address_so_far: str, full_address: str) -> 'MissionOrderNode':
-        if self.parent is None:
-            raise ValueError(
-                f"Address \"{address_so_far}\" (from \"{full_address}\") could not find a parent object. "
-                "This should mean the address contains \"..\" too often."
-            )
-        return self.parent()
+    def search(self, term: str) -> list['MissionOrderNode'] | None: ...
 
-    @abstractmethod
-    def search(self, term: str) -> list['MissionOrderNode'] | None:
-        raise NotImplementedError
+    def child_type_name(self) -> str: ...
 
-    @abstractmethod
-    def child_type_name(self) -> str:
-        raise NotImplementedError
+    def get_missions(self) -> list['SC2MOGenMission']: ...
 
-    @abstractmethod
-    def get_missions(self) -> list['SC2MOGenMission']:
-        raise NotImplementedError
+    def get_exits(self) -> list['SC2MOGenMission']: ...
 
-    @abstractmethod
-    def get_exits(self) -> list['SC2MOGenMission']:
-        raise NotImplementedError
+    def get_visual_requirement(self, start_node: 'MissionOrderNode') -> 'str | SC2MOGenMission': ...
 
-    @abstractmethod
-    def get_visual_requirement(self, start_node: 'MissionOrderNode') -> 'str | SC2MOGenMission':
-        raise NotImplementedError
+    def get_visual_name(self) -> str: ...
 
-    @abstractmethod
-    def get_key_name(self) -> str:
-        raise NotImplementedError
+    def get_key_name(self, id_to_node: dict[tuple[int, ...], 'MissionOrderNode']) -> str: ...
 
-    @abstractmethod
-    def get_min_depth(self) -> int:
-        raise NotImplementedError
+    def get_min_depth(self) -> int: ...
 
-    @abstractmethod
-    def get_address_to_node(self) -> str:
-        raise NotImplementedError
+    def get_address_to_node(self, id_to_node: dict[tuple[int, ...], 'MissionOrderNode']) -> str: ...
 
 
-class SC2MOGenMissionOrder(MissionOrderNode):
+class SC2MOGenMissionOrder:
     """
     The top-level data structure for mission orders.
     """
@@ -82,6 +64,8 @@ class SC2MOGenMissionOrder(MissionOrderNode):
     max_depth: int
 
     def __init__(self, world: 'SC2World', data: dict[str, 'CampaignDict']) -> None:
+        self.id: tuple[int, ...] = ()
+        self.important_beat_event = False
         self.campaigns = []
         self.sorted_missions = {diff: [] for diff in Difficulty if diff != Difficulty.RELATIVE}
         self.fixed_missions = []
@@ -89,9 +73,10 @@ class SC2MOGenMissionOrder(MissionOrderNode):
         self.keys_to_resolve = {}
         self.goal_missions = []
         self.parent = None
+        self._id_to_child_nodes: dict[tuple[int, ...], MissionOrderNode] = {}
 
-        for (campaign_name, campaign_data) in data.items():
-            campaign = SC2MOGenCampaign(world, ref(self), campaign_name, campaign_data)
+        for index, (campaign_name, campaign_data) in enumerate(data.items()):
+            campaign = SC2MOGenCampaign(world, (index,), campaign_name, campaign_data)
             self.campaigns.append(campaign)
 
         # Check that the mission order actually has a goal
@@ -139,6 +124,17 @@ class SC2MOGenMissionOrder(MissionOrderNode):
                 layout.display_name = world.random.choice(names)
                 used_names.add(layout.display_name)
 
+    def get_id_to_node(self) -> dict[tuple[int, ...], MissionOrderNode]:
+        if not self._id_to_child_nodes:
+            for campaign in self.campaigns:
+                self._id_to_child_nodes[campaign.id] = campaign
+                for layout in campaign.layouts:
+                    self._id_to_child_nodes[layout.id] = layout
+                    for mission in layout.missions:
+                        self._id_to_child_nodes[mission.id] = mission
+        # Store self id separately to avoid the circular reference
+        return self._id_to_child_nodes | {self.id: self}
+
     def get_slot_data(self) -> list[dict[str, Any]]:
         # [(campaign data, [(layout data, [[(mission data)]] )] )]
         return [asdict(campaign.get_slot_data()) for campaign in self.campaigns]
@@ -159,20 +155,23 @@ class SC2MOGenMissionOrder(MissionOrderNode):
     def get_exits(self) -> list['SC2MOGenMission']:
         return []
 
-    def get_visual_requirement(self, _start_node: MissionOrderNode) -> 'str | SC2MOGenMission':
+    def get_visual_requirement(self, start_node: MissionOrderNode) -> 'str | SC2MOGenMission':
         return "All Missions"
 
-    def get_key_name(self) -> str:
-        return super().get_key_name()  # type: ignore
+    def get_visual_name(self) -> str:
+        return "Everything"
+
+    def get_key_name(self, id_to_node: dict[tuple[int, ...], MissionOrderNode]) -> str:
+        raise NotImplementedError
 
     def get_min_depth(self) -> int:
-        return super().get_min_depth()  # type: ignore
+        return 0
 
-    def get_address_to_node(self):
-        return self.campaigns[0].get_address_to_node() + "/.."
+    def get_address_to_node(self, id_to_node: dict[tuple[int, ...], MissionOrderNode]) -> str:
+        return "/"
 
 
-class SC2MOGenCampaign(MissionOrderNode):
+class SC2MOGenCampaign:
     option_name: str # name of this campaign
     option_display_name: list[str]
     option_unique_name: bool
@@ -199,11 +198,11 @@ class SC2MOGenCampaign(MissionOrderNode):
     def __init__(
         self,
         world: 'SC2World',
-        parent: ReferenceType[SC2MOGenMissionOrder],
+        id: tuple[int, ...],
         name: str,
         data: 'CampaignDict',
     ) -> None:
-        self.parent = parent
+        self.id = id
         self.important_beat_event = False
         self.option_name = name
         self.option_display_name = data["display_name"]
@@ -217,8 +216,8 @@ class SC2MOGenCampaign(MissionOrderNode):
         self.layouts = []
         self.exits = []
 
-        for (layout_name, layout_data) in data["layouts"].items():
-            layout = SC2MOGenLayout(world, ref(self), layout_name, layout_data)
+        for index, (layout_name, layout_data) in enumerate(data["layouts"].items()):
+            layout = SC2MOGenLayout(world, (*self.id, index,), layout_name, layout_data)
             self.layouts.append(layout)
 
             # Collect required missions (marked layouts' exits)
@@ -257,26 +256,22 @@ class SC2MOGenCampaign(MissionOrderNode):
 
     def get_visual_requirement(self, start_node: MissionOrderNode) -> 'str | SC2MOGenMission':
         visual_name = self.get_visual_name()
-        # Needs special handling for double-parent, which is valid for missions but errors for campaigns
-        first_parent = start_node.get_parent("", "")
-        if (
-            first_parent is self or (
-                first_parent.parent is not None and first_parent.get_parent("", "") is self
-            )
-        ) and visual_name == "":
-            return "this campaign"
+        if start_node.id[:len(self.id)] == self.id:
+            # This campaign is a parent of the node getting a requirement printout
+            if not visual_name:
+                return "this campaign"
         return visual_name
 
     def get_visual_name(self) -> str:
         return self.display_name
 
-    def get_key_name(self) -> str:
+    def get_key_name(self, id_to_node: dict[tuple[int, ...], MissionOrderNode]) -> str:
         return item_names._TEMPLATE_NAMED_CAMPAIGN_KEY.format(self.get_visual_name())
 
     def get_min_depth(self) -> int:
         return self.min_depth
 
-    def get_address_to_node(self) -> str:
+    def get_address_to_node(self, id_to_node: dict[tuple[int, ...], MissionOrderNode]) -> str:
         return f"{self.option_name}"
 
     def get_slot_data(self) -> CampaignSlotData:
@@ -293,7 +288,7 @@ class SC2MOGenCampaign(MissionOrderNode):
         )
 
 
-class SC2MOGenLayout(MissionOrderNode):
+class SC2MOGenLayout:
     option_name: str  # name of this layout
     option_display_name: list[str]  # visual name of this layout
     option_unique_name: bool
@@ -327,11 +322,11 @@ class SC2MOGenLayout(MissionOrderNode):
     def __init__(
         self,
         world: 'SC2World',
-        parent: ReferenceType[SC2MOGenCampaign],
+        id: tuple[int, ...],
         name: str,
         data: 'LayoutDict'
     ) -> None:
-        self.parent: ReferenceType[SC2MOGenCampaign] = parent
+        self.id = id
         self.important_beat_event = False
         self.option_name = name
         self.option_display_name = data["display_name"]
@@ -358,7 +353,9 @@ class SC2MOGenLayout(MissionOrderNode):
         from . import layout_types
         self.layout_type: LayoutType = layout_types.LAYOUT_TYPE_NAME_TO_CLASS[self.option_type](self.option_size)
         self.layout_type.set_options(data)
-        mission_factory = lambda: SC2MOGenMission(ref(self), set(self.option_mission_pool))
+
+        def mission_factory(index: int) -> SC2MOGenMission:
+            return SC2MOGenMission((*self.id, index,), set(self.option_mission_pool))
         self.missions = self.layout_type.make_slots(mission_factory)
 
         # Update missions with user data
@@ -444,8 +441,9 @@ class SC2MOGenLayout(MissionOrderNode):
 
     def resolve_index_term(self, term: str | int, *, ignore_out_of_bounds: bool = True, reject_none: bool = True) -> set[int] | None:
         try:
-            result = {int(term)}
+            result: set[int] | None = {int(term)}
         except ValueError:
+            assert isinstance(term, str)
             if term == "entrances":
                 result = {idx for idx in range(len(self.missions)) if self.missions[idx].option_entrance}
             elif term == "exits":
@@ -456,24 +454,16 @@ class SC2MOGenLayout(MissionOrderNode):
                 result = self.layout_type.parse_index(term)
                 if result is None and reject_none:
                     raise OptionError(f"Layout \"{self.option_name}\" could not resolve mission index term \"{term}\".")
-        if ignore_out_of_bounds:
-            result = [index for index in result if index >= 0 and index < len(self.missions)]
+        if ignore_out_of_bounds and result is not None:
+            result = {index for index in result if index >= 0 and index < len(self.missions)}
         return result
-
-    def get_parent(self, _address_so_far: str, _full_address: str) -> MissionOrderNode:
-        if self.parent().option_single_layout_campaign:
-            parent = self.parent().parent
-        else:
-            parent = self.parent
-        return parent()
 
     def search(self, term: str) -> list[MissionOrderNode] | None:
         indices = self.resolve_index_term(term, reject_none=False)
         if indices is None:
             # Let the address parser handle the fail case
             return []
-        missions = [self.missions[index] for index in sorted(indices)]
-        return missions
+        return [self.missions[index] for index in sorted(indices)]
 
     def child_type_name(self) -> str:
         return "Mission"
@@ -486,29 +476,36 @@ class SC2MOGenLayout(MissionOrderNode):
 
     def get_visual_requirement(self, start_node: MissionOrderNode) -> 'str | SC2MOGenMission':
         visual_name = self.get_visual_name()
-        if start_node.get_parent("", "") is self and visual_name == "":
-            return "this questline"
+        if start_node.id[:len(self.id)] == self.id:
+            # This layout is a parent of the node getting a requirement printout
+            if not visual_name:
+                return "this questline"
         return visual_name
 
     def get_visual_name(self) -> str:
         return self.display_name
 
-    def get_key_name(self) -> str:
-        return item_names._TEMPLATE_NAMED_LAYOUT_KEY.format(self.get_visual_name(), self.parent().get_visual_name())
+    def get_key_name(self, id_to_node: dict[tuple[int, ...], MissionOrderNode]) -> str:
+        parent_node = id_to_node[parent_id(self.id)]
+        return item_names._TEMPLATE_NAMED_LAYOUT_KEY.format(self.get_visual_name(), parent_node.get_visual_name())
 
     def get_min_depth(self) -> int:
         return self.min_depth
 
-    def get_address_to_node(self) -> str:
-        campaign = self.parent()
+    def get_address_to_node(self, id_to_node: dict[tuple[int, ...], MissionOrderNode]) -> str:
+        campaign = cast(SC2MOGenCampaign, id_to_node[parent_id(self.id)])
         if campaign.option_single_layout_campaign:
             return f"{self.option_name}"
-        return self.parent().get_address_to_node() + f"/{self.option_name}"
+        return campaign.get_address_to_node(id_to_node) + f"/{self.option_name}"
 
     def get_slot_data(self) -> LayoutSlotData:
-        mission_slots = [
+        mission_slots: list[list[MissionSlotData]] = [
             [
-                asdict(self.missions[idx].get_slot_data() if (idx >= 0 and not self.missions[idx].option_empty) else MissionSlotData.empty())
+                asdict(
+                    self.missions[idx].get_slot_data()
+                    if (idx >= 0 and not self.missions[idx].option_empty)
+                    else MissionSlotData.empty()
+                )
                 for idx in column
             ]
             for column in self.layout_type.get_visual_layout()
@@ -526,7 +523,7 @@ class SC2MOGenLayout(MissionOrderNode):
         )
 
 
-class SC2MOGenMission(MissionOrderNode):
+class SC2MOGenMission:
     option_goal: bool  # whether this mission is required to beat the game
     option_entrance: bool  # whether this mission is unlocked when the layout is unlocked
     option_exit: bool  # whether this mission is required to beat its parent layout
@@ -547,8 +544,8 @@ class SC2MOGenMission(MissionOrderNode):
     next: list['SC2MOGenMission']
     prev: list['SC2MOGenMission']
 
-    def __init__(self, parent: ReferenceType[SC2MOGenLayout], parent_mission_pool: set[int]) -> None:
-        self.parent: ReferenceType[SC2MOGenLayout] = parent
+    def __init__(self, id: tuple[int, ...], parent_mission_pool: set[int]) -> None:
+        self.id = id
         self.important_beat_event = False
         self.option_mission_pool = parent_mission_pool
         self.option_goal = False
@@ -603,17 +600,19 @@ class SC2MOGenMission(MissionOrderNode):
     def get_visual_requirement(self, _start_node: MissionOrderNode) -> 'str | SC2MOGenMission':
         return self
 
-    def get_key_name(self) -> str:
+    def get_visual_name(self) -> str:
+        return f"Mission_{'.'.join(map(str, self.id))}"
+
+    def get_key_name(self, id_to_node: dict[tuple[int, ...], MissionOrderNode]) -> str:
         return item_names._TEMPLATE_MISSION_KEY.format(self.mission.mission_name)
 
     def get_min_depth(self) -> int:
         return self.min_depth
 
-    def get_address_to_node(self) -> str:
-        layout = self.parent()
-        assert layout is not None
+    def get_address_to_node(self, id_to_node: dict[tuple[int, ...], MissionOrderNode]) -> str:
+        layout = cast(SC2MOGenLayout, id_to_node[parent_id(self.id)])
         index = layout.missions.index(self)
-        return layout.get_address_to_node() + f"/{index}"
+        return layout.get_address_to_node(id_to_node) + f"/{index}"
 
     def get_slot_data(self) -> MissionSlotData:
         return MissionSlotData(
