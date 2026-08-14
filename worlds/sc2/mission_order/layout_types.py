@@ -1,22 +1,34 @@
 from __future__ import annotations
-from typing import Callable, TYPE_CHECKING, ClassVar, Type
+from typing import Callable, TYPE_CHECKING, ClassVar, Type, Literal
+from dataclasses import dataclass
 import math
 from abc import ABC, abstractmethod
 import inspect
 import sys
 
+from . import index_parsing
+
 if TYPE_CHECKING:
-    from .nodes import SC2MOGenMission
+    from .nodes import SC2MOGenLayout, SC2MOGenMission
     from .types import LayoutDict
+
 
 
 class LayoutType(ABC):
     size: int
-    index_functions: list[str] = []
-    """Names of available functions for mission indices. For list member `"my_fn"`, function should be called `idx_my_fn`."""
     NAME_IN_OPTIONS: ClassVar[str]
 
     def __init__(self, size: int):
+        self.index_functions: dict[str,
+            tuple[Callable[[], set[int]], Literal[0], bool]
+            |tuple[Callable[[str|int], set[int]], Literal[1], bool]
+            |tuple[Callable[[str|int, str|int], set[int]], Literal[2], bool]
+            |tuple[Callable[[str|int, str|int, str|int], set[int]], Literal[3], bool]
+            |tuple[Callable[[str|int, str|int, str|int, str|int], set[int]], Literal[4], bool]
+        ] = {}
+        """Mapping of name of index functions to their callables, argument counts, and whether they allow raw string input."""
+        self.variables: dict[str, Callable[[SC2MOGenMission, SC2MOGenLayout], int]] = {'index': self.var_index}
+        """Mapping of preset variable names like `x` and `y` to callables to get their values."""
         self.size = size
 
     def set_options(self, options: 'LayoutDict') -> None:
@@ -36,36 +48,18 @@ class LayoutType(ABC):
         Implementers should make changes with caution, since it runs after a user's explicit commands are implemented."""
         return
 
-    def parse_index(self, term: str) -> set[int] | None:
-        """From the given term, determine a list of desired target indices. The term is guaranteed to not be "entrances", "exits", or "all".
-
-        If the term cannot be parsed, either raise an exception or return `None`."""
-        return self.parse_index_as_function(term)
-
-    def parse_index_as_function(self, term: str) -> set[int] | None:
-        """Helper function to interpret the term as a function call on the layout type, if it is declared in `self.index_functions`.
-
-        Returns the function's return value if `term` is a valid function call, `None` otherwise."""
-        left = term.find('(')
-        right = term.find(')')
-        if left == -1 and right == -1:
-            # Assume no args are desired
-            fn_name = term.strip()
-            fn_args = []
-        elif left == -1 or right == -1:
-            return None
-        else:
-            fn_name = term[:left].strip()
-            fn_args_str = term[left + 1:right]
-            fn_args = [arg.strip() for arg in fn_args_str.split(',')]
-
-        if fn_name in self.index_functions:
-            try:
-                return getattr(self, "idx_" + fn_name)(*fn_args)
-            except:
-                return None
-        else:
-            return None
+    def parse_index(
+        self,
+        term: str,
+        search_info: tuple['SC2MOGenMission', 'SC2MOGenLayout'] | tuple[()],
+        num_missions: int,
+        context: str
+    ) -> set[int]:
+        """From the given term, determine a list of desired target indices.
+        The term is guaranteed to not be "entrances", "exits", or "all".
+        If the term cannot be parsed, return an empty set.
+        """
+        return index_parsing.parse_index(term, self.index_functions, search_info, num_missions, context)
 
     @abstractmethod
     def get_visual_layout(self) -> list[list[int]]:
@@ -74,6 +68,9 @@ class LayoutType(ABC):
 
         The resulting 2D list should be rectangular."""
         pass
+
+    def var_index(self, mission: 'SC2MOGenMission', layout: 'SC2MOGenLayout') -> int:
+        return mission.id[-1]
 
 
 class Column(LayoutType):
@@ -103,13 +100,20 @@ class Grid(LayoutType):
     num_corners_to_remove: int
     two_start_positions: bool
 
-    index_functions = [
-        "point", "rect"
-    ]
-
     # 0 1 2
     # 3 4 5
     # 6 7 8
+
+    def __init__(self, size: int) -> None:
+        super().__init__(size)
+        self.index_functions.update({
+            "point": (self.idx_point, 2, False),
+            "rect": (self.idx_rect, 4, False),
+        })
+        self.variables.update({
+            "x": self.var_x,
+            "y": self.var_y,
+        })
 
     def set_options(self, options: 'LayoutDict') -> None:
         self.two_start_positions = options.get("two_start_positions", False) and self.size >= 2
@@ -140,7 +144,7 @@ class Grid(LayoutType):
     @staticmethod
     def get_grid_dimensions(size: int) -> tuple[int, int, int]:
         """
-        Get the dimensions of a grid mission order from the number of missions, int the format (x, y, error).
+        Get the dimensions of a grid mission order from the number of missions, in the format (x, y, error).
         * Error will always be 0, 1, or 2, so the missions can be removed from the corners that aren't the start or end.
         * Dimensions are chosen such that x <= y, as buttons in the UI are wider than they are tall.
         * Dimensions are chosen to be maximally square. That is, x + y + error is minimized.
@@ -242,24 +246,24 @@ class Grid(LayoutType):
         ]
         return columns
 
-    def idx_point(self, x: str | int, y: str | int) -> set[int] | None:
+    def idx_point(self, x: str | int, y: str | int) -> set[int]:
         try:
             x = int(x)
             y = int(y)
         except:
-            return None
+            return set()
         if self.is_valid_coordinates(x, y):
             return {self.get_grid_index(x, y)}
-        return None
+        return set()
 
-    def idx_rect(self, x: str | int, y: str | int, width: str | int, height: str | int) -> set[int] | None:
+    def idx_rect(self, x: str | int, y: str | int, width: str | int, height: str | int) -> set[int]:
         try:
             x = int(x)
             y = int(y)
             width = int(width)
             height = int(height)
         except:
-            return None
+            return set()
         indices = {
             self.get_grid_index(pt_x, pt_y)
             for pt_y in range(y, y + height)
@@ -267,6 +271,12 @@ class Grid(LayoutType):
             if self.is_valid_coordinates(pt_x, pt_y)
         }
         return indices
+
+    def var_x(self, mission: 'SC2MOGenMission', layout: 'SC2MOGenLayout') -> int:
+        return mission.id[-1] % self.width
+
+    def var_y(self, mission: 'SC2MOGenMission', layout: 'SC2MOGenLayout') -> int:
+        return mission.id[-1] // self.width
 
 
 class Canvas(Grid):
@@ -280,7 +290,11 @@ class Canvas(Grid):
     jumps_orthogonal = [(-1, 0), (0, 1), (1, 0), (0, -1)]
     jumps_diagonal = [(-1, -1), (-1, 1), (1, 1), (1, -1)]
 
-    index_functions = Grid.index_functions + ["group"]
+    def __init__(self, size: int) -> None:
+        super().__init__(size)
+        self.index_functions.update({
+            "group": (self.idx_group, 1, True),
+        })
 
     def set_options(self, options: 'LayoutDict') -> None:
         self.width = options["width"]
@@ -384,10 +398,10 @@ class Canvas(Grid):
             )
             closest_to_bottom_right[0][1].option_exit = True
 
-    def idx_group(self, group: str) -> set[int] | None:
-        if group not in self.groups:
-            return None
-        return set(self.groups[group])
+    def idx_group(self, group: str | int) -> set[int]:
+        if str(group) not in self.groups:
+            return set()
+        return set(self.groups[str(group)])
 
 
 class Hopscotch(LayoutType):
@@ -398,14 +412,19 @@ class Hopscotch(LayoutType):
     spacer: int
     two_start_positions: bool
 
-    index_functions = [
-        "top", "bottom", "middle", "corner"
-    ]
-
     # 0 2
     # 1 3 5
     #   4 6
     #     7
+
+    def __init__(self, size: int) -> None:
+        super().__init__(size)
+        self.index_functions.update({
+            "top": (self.idx_top, 0, False),
+            "bottom": (self.idx_bottom, 0, False),
+            "middle": (self.idx_middle, 0, False),
+            "corner": (self.idx_corner, 1, False),
+        })
 
     def set_options(self, options: 'LayoutDict') -> None:
         self.two_start_positions = options.get("two_start_positions", False) and self.size >= 2
@@ -499,14 +518,14 @@ class Hopscotch(LayoutType):
             idx for idx in indices if idx < self.size
         }
 
-    def idx_corner(self, number: str | int) -> set[int] | None:
+    def idx_corner(self, number: str | int) -> set[int]:
         try:
             number = int(number)
         except:
-            return None
+            return set()
         corners = math.ceil(self.size / 3)
         if number >= corners:
-            return None
+            return set()
         indices = [number * 3 + n for n in range(3)]
         return {
             idx for idx in indices if idx < self.size
@@ -553,12 +572,18 @@ class Blitz(LayoutType):
     NAME_IN_OPTIONS = "blitz"
     width: int
 
-    index_functions = [
-        "row"
-    ]
-
     # 0 1 2 3
     # 4 5 6 7
+
+    def __init__(self, size: int) -> None:
+        super().__init__(size)
+        self.index_functions.update({
+            "row": (self.idx_row, 1, False),
+        })
+        self.variables.update({
+            "x": self.var_x,
+            "y": self.var_y,
+        })
 
     def set_options(self, options: 'LayoutDict') -> None:
         width = options.get("width", 0)
@@ -605,18 +630,24 @@ class Blitz(LayoutType):
 
         return columns
 
-    def idx_row(self, row: str | int) -> set[int] | None:
+    def idx_row(self, row: str | int) -> set[int]:
         try:
             row = int(row)
         except:
-            return None
+            return set()
         rows = math.ceil(self.size / self.width)
         if row >= rows:
-            return None
+            return set()
         indices = [row * self.width + col for col in range(self.width)]
         return {
             idx for idx in indices if idx < self.size
         }
+
+    def var_x(self, mission: 'SC2MOGenMission', layout: 'SC2MOGenLayout') -> int:
+        return mission.id[-1] % self.width
+
+    def var_y(self, mission: 'SC2MOGenMission', layout: 'SC2MOGenLayout') -> int:
+        return mission.id[-1] // self.width
 
 
 def fill_to_longest(columns: list[list[int]]):

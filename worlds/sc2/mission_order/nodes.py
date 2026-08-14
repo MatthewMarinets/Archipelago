@@ -3,7 +3,7 @@ Contains the data structures that make up a mission order.
 Data in these structures is validated in .options.py and manipulated by .generation.py.
 """
 
-from typing import Callable, Any, TYPE_CHECKING, overload, Literal, cast, Protocol
+from typing import Callable, Any, TYPE_CHECKING, overload, Literal, cast, Protocol, Sequence
 from dataclasses import asdict
 
 from Options import OptionError
@@ -30,9 +30,15 @@ class MissionOrderNode(Protocol):
     id: tuple[int, ...]
     important_beat_event: bool
 
-    def search(self, term: str) -> list['MissionOrderNode'] | None: ...
+    def children(self) -> Sequence['MissionOrderNode']: ...
 
-    def child_type_name(self) -> str: ...
+    def search(
+        self,
+        term: str,
+        search_info: tuple['SC2MOGenMission', 'SC2MOGenLayout'] | tuple[()],
+    ) -> list['MissionOrderNode']: ...
+
+    def type_name(self) -> str: ...
 
     def get_missions(self) -> list['SC2MOGenMission']: ...
 
@@ -47,6 +53,7 @@ class MissionOrderNode(Protocol):
     def get_min_depth(self) -> int: ...
 
     def get_address_to_node(self, id_to_node: dict[tuple[int, ...], 'MissionOrderNode']) -> str: ...
+
 
 
 class SC2MOGenMissionOrder:
@@ -124,6 +131,9 @@ class SC2MOGenMissionOrder:
                 layout.display_name = world.random.choice(names)
                 used_names.add(layout.display_name)
 
+    def children(self) -> Sequence['MissionOrderNode']:
+        return self.campaigns
+
     def get_id_to_node(self) -> dict[tuple[int, ...], MissionOrderNode]:
         if not self._id_to_child_nodes:
             for campaign in self.campaigns:
@@ -131,7 +141,8 @@ class SC2MOGenMissionOrder:
                 for layout in campaign.layouts:
                     self._id_to_child_nodes[layout.id] = layout
                     for mission in layout.missions:
-                        self._id_to_child_nodes[mission.id] = mission
+                        if not mission.option_empty:
+                            self._id_to_child_nodes[mission.id] = mission
         # Store self id separately to avoid the circular reference
         return self._id_to_child_nodes | {self.id: self}
 
@@ -139,15 +150,19 @@ class SC2MOGenMissionOrder:
         # [(campaign data, [(layout data, [[(mission data)]] )] )]
         return [asdict(campaign.get_slot_data()) for campaign in self.campaigns]
 
-    def search(self, term: str) -> list[MissionOrderNode] | None:
+    def search(
+        self,
+        term: str,
+        search_info: tuple['SC2MOGenMission', 'SC2MOGenLayout'] | tuple[()],
+    ) -> list[MissionOrderNode]:
         return [
             campaign.layouts[0] if campaign.option_single_layout_campaign else campaign
             for campaign in self.campaigns
             if campaign.option_name.casefold() == term.casefold()
         ]
 
-    def child_type_name(self) -> str:
-        return "Campaign"
+    def type_name(self) -> str:
+        return "Mission Order"
 
     def get_missions(self) -> list['SC2MOGenMission']:
         return [mission for campaign in self.campaigns for layout in campaign.layouts for mission in layout.missions]
@@ -238,15 +253,22 @@ class SC2MOGenCampaign:
     def is_unlocked(self, beaten_missions: set['SC2MOGenMission'], in_region_creation = False) -> bool:
         return self.entry_rule.is_fulfilled(beaten_missions, in_region_creation)
 
-    def search(self, term: str) -> list[MissionOrderNode] | None:
+    def children(self) -> Sequence['MissionOrderNode']:
+        return self.layouts
+
+    def search(
+        self,
+        term: str,
+        search_info: tuple['SC2MOGenMission', 'SC2MOGenLayout'] | tuple[()],
+    ) -> list[MissionOrderNode]:
         return [
             layout
             for layout in self.layouts
             if layout.option_name.casefold() == term.casefold()
         ]
 
-    def child_type_name(self) -> str:
-        return "Layout"
+    def type_name(self) -> str:
+        return "Campaign"
 
     def get_missions(self) -> list['SC2MOGenMission']:
         return [mission for layout in self.layouts for mission in layout.missions]
@@ -363,7 +385,7 @@ class SC2MOGenLayout:
             indices: set[int] = set()
             index_terms: list[int | str] = mission_data["index"]
             for term in index_terms:
-                result = self.resolve_index_term(term)
+                result = self.resolve_index_term(term, "specifying mission indices")
                 indices.update(result)
             for idx in indices:
                 self.missions[idx].update_with_data(mission_data)
@@ -377,7 +399,13 @@ class SC2MOGenLayout:
             if mission.option_exit:
                 self.exits.append(mission)
             if mission.option_next is not None:
-                mission.next = [self.missions[idx] for term in mission.option_next for idx in sorted(self.resolve_index_term(term))]
+                mission.next = [
+                    self.missions[idx]
+                    for term in mission.option_next
+                    for idx in sorted(self.resolve_index_term(
+                        term, "specifying next mission", search_info=(mission, self)
+                    ))
+                ]
 
         # Set up missions' prev data
         for mission in self.missions:
@@ -434,14 +462,20 @@ class SC2MOGenLayout:
     def is_unlocked(self, beaten_missions: set['SC2MOGenMission'], in_region_creation = False) -> bool:
         return self.entry_rule.is_fulfilled(beaten_missions, in_region_creation)
 
-    @overload
-    def resolve_index_term(self, term: str | int, *, ignore_out_of_bounds: bool = True, reject_none: Literal[False]) -> set[int] | None: ...
-    @overload
-    def resolve_index_term(self, term: str | int, *, ignore_out_of_bounds: bool = True, reject_none: Literal[True] = True) -> set[int]: ...
-
-    def resolve_index_term(self, term: str | int, *, ignore_out_of_bounds: bool = True, reject_none: bool = True) -> set[int] | None:
+    def resolve_index_term(
+        self,
+        term: str | int,
+        context: str,
+        *,
+        reject_none: bool = True,
+        search_info: tuple['SC2MOGenMission', 'SC2MOGenLayout'] | tuple[()] = (),
+    ) -> set[int]:
+        result: set[int]
         try:
-            result: set[int] | None = {int(term)}
+            int_term = int(term)
+            if int_term < 0:
+                int_term += len(self.missions)
+            result = {int_term}
         except ValueError:
             assert isinstance(term, str)
             if term == "entrances":
@@ -451,22 +485,29 @@ class SC2MOGenLayout:
             elif term == "all":
                 result = {idx for idx in range(len(self.missions))}
             else:
-                result = self.layout_type.parse_index(term)
-                if result is None and reject_none:
+                result = self.layout_type.parse_index(term, search_info, len(self.missions), context)
+                if not result and reject_none:
                     raise OptionError(f"Layout \"{self.option_name}\" could not resolve mission index term \"{term}\".")
-        if ignore_out_of_bounds and result is not None:
-            result = {index for index in result if index >= 0 and index < len(self.missions)}
+        # Ignore out-of-bounds
+        result = {index for index in result if index >= 0 and index < len(self.missions)}
         return result
 
-    def search(self, term: str) -> list[MissionOrderNode] | None:
-        indices = self.resolve_index_term(term, reject_none=False)
+    def children(self) -> Sequence['MissionOrderNode']:
+        return self.missions
+
+    def search(
+        self,
+        term: str,
+        search_info: tuple['SC2MOGenMission', 'SC2MOGenLayout'] | tuple[()],
+    ) -> list[MissionOrderNode]:
+        indices = self.resolve_index_term(term, "defining entry rule mission requirements", reject_none=False, search_info=search_info)
         if indices is None:
-            # Let the address parser handle the fail case
+            # Let the caller handle the fail case
             return []
         return [self.missions[index] for index in sorted(indices)]
 
-    def child_type_name(self) -> str:
-        return "Mission"
+    def type_name(self) -> str:
+        return "Questline"
 
     def get_missions(self) -> list['SC2MOGenMission']:
         return [mission for mission in self.missions]
@@ -585,11 +626,18 @@ class SC2MOGenMission:
     def beat_rule(self, player) -> Callable[[CollectionState], bool]:
         return lambda state: state.has(self.beat_item(), player)
 
-    def search(self, term: str) -> list[MissionOrderNode] | None:
-        return None
+    def children(self) -> Sequence['MissionOrderNode']:
+        return []
 
-    def child_type_name(self) -> str:
-        return ""
+    def search(
+        self,
+        term: str,
+        search_info: tuple['SC2MOGenMission', 'SC2MOGenLayout'] | tuple[()],
+    ) -> list[MissionOrderNode]:
+        return []
+
+    def type_name(self) -> str:
+        return "Mission"
 
     def get_missions(self) -> list['SC2MOGenMission']:
         return [self]
@@ -621,3 +669,14 @@ class SC2MOGenMission:
             self.entry_rule.to_slot_data(),
             self.option_victory_cache,
         )
+
+    def __str__(self) -> str:
+        terms = [f"id={self.id}", f"mission={self.mission}"]
+        if self.option_empty:
+            terms.append(f"empty=True")
+        if self.option_goal:
+            terms.append(f"goal=True")
+        return f"MissionSlot({', '.join(terms)})"
+
+    def __repr__(self) -> str:
+        return self.__str__()

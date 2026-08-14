@@ -178,52 +178,92 @@ def _dict_to_entry_rule(
         if "amount" in data:
             missions = [mission for (obj, _) in objects for mission in obj.get_missions() if not mission.option_empty]
             if len(missions) == 0:
-                raise ValueError(f"Count rule did not find any missions at scopes: {data['scope']}")
+                raise OptionError(f"Count rule did not find any missions at scopes: {data['scope']}")
             return CountMissionsEntryRule(missions, data["amount"], visual_reqs)
         missions = []
         for (obj, address) in objects:
             obj.important_beat_event = True
             exits = obj.get_exits()
             if len(exits) == 0:
-                raise ValueError(
+                raise OptionError(
                     f"Address \"{address}\" found an unbeatable object. "
                     "This should mean the address contains \"..\" too often."
                 )
             missions.extend(exits)
         return BeatMissionsEntryRule(missions, visual_reqs)
-    raise ValueError(f"Invalid data for entry rule: {data}")
+    raise OptionError(f"Invalid data for entry rule: {data}")
 
 
 def _resolve_address(mission_order: SC2MOGenMissionOrder, address: str, start_node: MissionOrderNode) -> list[MissionOrderNode]:
     """Tries to find a node in the mission order by following the given address."""
-    if address.startswith("../") or address == "..":
-        # Relative address, starts from searching object
+    if address.startswith(".."):
         cursor = start_node.id
+    elif address.startswith("."):
+        # Relative address, starts from searching object
+        cursor = parent_id(start_node.id)
     else:
         # Absolute address, starts from the top
         cursor = mission_order.id
     address_so_far = ""
     id_to_node = mission_order.get_id_to_node()
-    for term in address.split("/"):
-        if len(address_so_far) > 0:
-            address_so_far += "/"
-        address_so_far += term
-        if term == "..":
+    terms = address.split("/")
+    search_info: tuple[SC2MOGenMission, SC2MOGenLayout] | tuple[()]
+    if isinstance(start_node, SC2MOGenMission):
+        parent_node = id_to_node[parent_id(start_node.id)]
+        assert isinstance(parent_node, SC2MOGenLayout)
+        search_info = (start_node, parent_node)
+    else:
+        search_info = ()
+    for index, term in enumerate(terms):
+        address_so_far = "/".join(terms[:index+1])
+        term = term.strip()
+        if not term:
+            continue
+        int_term: int | None = None
+        try:
+            int_term = int(term)
+        except:
+            pass
+        if term == ".":
+            continue
+        elif term == "..":
             cursor = parent_id(cursor)
+        elif int_term is not None and int_term >= 0:
+            element = id_to_node[cursor]
+            if int_term >= len(element.children()):
+                raise OptionError(
+                    f'Address "{address_so_far}" (from "{address}") is out of range; '
+                    f'container only has {len(element.children())} children'
+                )
+            cursor = (*cursor, int(term))
+            if cursor not in id_to_node:
+                raise OptionError(f'Address "{address_so_far}" (from "{address}") points to a node that doesn\'t exist')
+        elif int_term is not None:
+            element = id_to_node[cursor]
+            normalized_term = len(element.children()) + int_term
+            if normalized_term < 0:
+                raise OptionError(
+                    f'Address "{address_so_far}" (from "{address}") is out of range; '
+                    f'container only has {len(element.children())} children'
+                )
+            cursor = (*cursor, normalized_term)
+            if cursor not in id_to_node:
+                raise OptionError(f'Address "{address_so_far}" (from "{address}") points to a node that doesn\'t exist')
         else:
-            element = id_to_node.get(cursor)
-            if element is None:
-                raise OptionError(f"Address \"{address_so_far}\" (from \"{address}\") points to a node that doesn't exist")
-            search_result = element.search(term)
-            if search_result is None:
+            element = id_to_node[cursor]
+            if isinstance(element, SC2MOGenMission):
                 raise OptionError(f"Address \"{address_so_far}\" (from \"{address}\") tried to find a child for a mission.")
+            search_result = element.search(term, search_info)
             if len(search_result) == 0:
                 raise OptionError(f"Address \"{address_so_far}\" (from \"{address}\") could not find a child node.")
             if len(search_result) > 1:
                 # Layouts are allowed to end with multiple missions via an index function
-                if type(search_result[0]) == SC2MOGenMission and address_so_far == address:
+                if index >= len(terms) - 1:
                     return search_result
-                raise OptionError((f"Address \"{address_so_far}\" (from \"{address}\") found more than one child node."))
+                raise OptionError(
+                    f"Address \"{address_so_far}\" (from \"{address}\") found more than one child node. "
+                    "This is only allowed if the address has no further terms."
+                )
             cursor = search_result[0].id
         if cursor == start_node.id:
             raise OptionError(
