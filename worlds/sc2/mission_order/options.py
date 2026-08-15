@@ -794,13 +794,14 @@ def _resolve_entry_rule(option_name: str, option_value: dict) -> 'EntryRuleDict'
     option_items = option_value["items"]
     if not isinstance(option_items, dict):
         raise OptionError(errormsg_invalid_type(f"{option_name}.items", option_items, dict))
+    items_result: dict[str, int] = {}
     for item_name, item_amount in option_items.items():
         item_name = str(item_name)
         item_amount = _resolve_potential_range(item_amount, f"{option_name}.items[{item_name}]")
         if not isinstance(item_amount, int):
             raise OptionError(errormsg_invalid_type(f"{option_name}.items[{item_name}]", item_amount, int))
-    items_result: dict[str, int] = {}
-    items_result = _resolve_item_names(option_items)
+        items_result[item_name] = item_amount
+    items_result = _resolve_item_names(items_result)
 
     # Check for invalid item names, resolve item amounts based on item quantities
     invalid_items: list[str] = []
