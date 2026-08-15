@@ -17,6 +17,7 @@ from typing import (
     Type,
     Mapping,
     cast,
+    overload,
 )
 import copy
 import logging
@@ -42,6 +43,7 @@ if TYPE_CHECKING:
 
 
 T = TypeVar("T")
+U = TypeVar("U")
 
 logger = logging.getLogger("Starcraft 2")
 
@@ -149,13 +151,17 @@ MISSION_SLOT_KEYS = (
 )
 
 
-def errormsg_invalid_type(option_name: str, value: Any, expected_type: Type) -> str:
+def errormsg_invalid_type(option_name: str, value: Any, expected_type: Type | tuple[Type, ...]) -> str:
     value_printout = str(value)
     if len(value_printout) > 20:
         value_printout = value_printout[:16] + "[...]"
+    if isinstance(expected_type, tuple):
+        type_name = " or ".join(x.__name__ for x in expected_type)
+    else:
+        type_name = expected_type.__name__
     return (
         f"Option '{option_name}' got invalid type. "
-        f"Expected {expected_type.__name__}, got type {type(value).__name__}, value {value_printout}"
+        f"Expected {type_name}, got type {type(value).__name__}, value {value_printout}"
     )
 
 
@@ -211,16 +217,26 @@ class ResolveOption:
             raise OptionError(errormsg_invalid_type(self.option_name, self.value, target_type))
         return self.value
 
-    def require_list_of(self, target_type: Type[T]) -> list[T]:
+    @overload
+    def require_list_of(self, target_type: Type[T]) -> list[T]: ...
+    @overload
+    def require_list_of(self, target_type: tuple[Type[T], Type[U]]) -> list[T | U]: ...
+
+    def require_list_of(self, target_type: Type[T] | tuple[Type[T], Type[U]]) -> list[T] | list[T | U]:
         value = self.require(list)
         for index, element in enumerate(value):
             if not isinstance(element, target_type):
                 raise OptionError(errormsg_invalid_type(
-                    f"{self.option_name}[{index}]", self.value, target_type)
+                    f"{self.option_name}[{index}]", element, target_type)
                 )
         return value
 
-    def require_nullable_list_of(self, target_type: Type[T]) -> list[T] | None:
+    @overload
+    def require_nullable_list_of(self, target_type: Type[T]) -> list[T] | None: ...
+    @overload
+    def require_nullable_list_of(self, target_type: tuple[Type[T], Type[U]]) -> list[T | U] | None: ...
+
+    def require_nullable_list_of(self, target_type: Type[T] | tuple[Type[T], Type[U]]) -> list[T] | list[T | U] | None:
         if self.value is None:
             return None
         return self.require_list_of(target_type)
@@ -905,7 +921,7 @@ def _resolve_mission_spec(option_name: str, option_value: Any) -> 'MissionSlotDi
         .fallback_from_dict(option_value)
         .listify()
         .flatten_list()
-        .require_nullable_list_of(int)
+        .require_nullable_list_of((str, int))
     )
     entry_rule_specs = (
         ResolveOption(option_name, "entry_rules")
