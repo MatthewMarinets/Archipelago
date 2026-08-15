@@ -272,7 +272,7 @@ class ResolveOption:
     def assert_greater_than_equal_to(self, threshold: int, type_filter: Type = int) -> Self:
         if self.value is None:
             return self
-        if isinstance(self, type_filter) and not (self.value >= threshold):
+        if isinstance(self.value, type_filter) and not (self.value >= threshold):
             raise OptionError(
                 f"Option {self.option_name} got invalid value {self.value}. "
                 f"Expected a value of at least {threshold}."
