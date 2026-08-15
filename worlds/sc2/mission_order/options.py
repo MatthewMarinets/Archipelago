@@ -22,6 +22,7 @@ from typing import (
 import copy
 import logging
 
+from .. import locations
 from ..mission_tables import lookup_name_to_mission
 from ..mission_groups import mission_groups
 from ..item.item_tables import item_table
@@ -276,6 +277,16 @@ class ResolveOption:
             raise OptionError(
                 f"Option {self.option_name} got invalid value {self.value}. "
                 f"Expected a value of at least {threshold}."
+            )
+        return self
+
+    def assert_less_than_equal_to(self, threshold: int, type_filter: Type = int) -> Self:
+        if self.value is None:
+            return self
+        if isinstance(self.value, type_filter) and not (self.value <= threshold):
+            raise OptionError(
+                f"Option {self.option_name} got invalid value {self.value}. "
+                f"Expected a value of at most {threshold}."
             )
         return self
 
@@ -953,6 +964,7 @@ def _resolve_mission_spec(option_name: str, option_value: Any) -> 'MissionSlotDi
     victory_cache = (
         ResolveOption(option_name, "victory_cache")
         .fallback_from_dict(option_value)
+        .assert_less_than_equal_to(locations.NUM_VICTORY_CACHE_LOCATIONS)
         .require_nullable(int)
     )
     heroes_spec = (
