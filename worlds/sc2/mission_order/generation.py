@@ -1307,13 +1307,13 @@ def resolve_generic_keys(mission_order: SC2MOGenMissionOrder) -> None:
         # Sort keys to change by layout
         new_unique_tracks: dict[MissionOrderNode, list[tuple[MissionOrderNode, ItemEntryRule]]] = {}
         for (node, item_rule) in progression_tracks[track]:
-            parent = cast(SC2MOGenLayout | SC2MOGenCampaign, id_to_node[node.id[:1]])
+            parent = cast(SC2MOGenLayout | SC2MOGenCampaign, id_to_node[parent_id(node.id)])
             if isinstance(node, SC2MOGenMission):
                 # Unique tracks for layouts take priority over campaigns
-                grandparent = cast(SC2MOGenCampaign, id_to_node[node.id[:2]])
+                grandparent = cast(SC2MOGenCampaign| SC2MOGenMissionOrder, id_to_node[parent_id(parent.id)])
                 if parent.option_unique_progression_track == track:
                     new_unique_tracks.setdefault(parent, []).append((node, item_rule))
-                elif grandparent.option_unique_progression_track == track:
+                elif isinstance(grandparent, SC2MOGenCampaign) and grandparent.option_unique_progression_track == track:
                     new_unique_tracks.setdefault(grandparent, []).append((node, item_rule))
             elif isinstance(parent, SC2MOGenCampaign) and parent.option_unique_progression_track == track:
                 new_unique_tracks.setdefault(parent, []).append((node, item_rule))
