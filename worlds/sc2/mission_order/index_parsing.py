@@ -184,7 +184,7 @@ def parse_int_expression(
             stack.append(unary_multiplier * variable_func(start_mission, start_layout))
         elif token.type == TokenType.OPERATOR:
             if previous_type in (TokenType.OPERATOR, TokenType.COMMA, TokenType.OPEN_PAREN, TokenType.NONE):
-                if token.content in "-":
+                if token.content in "-+":
                     index += 1
                     if index >= len(tokens):
                         raise OptionError(
@@ -235,6 +235,7 @@ def parse_int_expression(
                     f"Unknown formatting in layout search term \"{term}\": "
                     f"encountered closing ')' at offset {token.offset} when there are no opening parentheses to close"
                 )
+            operator_stack.pop()
         previous_type = token.type
         unary_multiplier = 1
         index += 1
@@ -243,8 +244,6 @@ def parse_int_expression(
         num_operands = len(operators) + 1
         associative_result = resolve_operators(stack[-num_operands:], operators)
         stack[-num_operands:] = [associative_result]
-    if operator_stack:
-        operator_stack.pop()
     if operator_stack:
         raise OptionError(
             f"Unknown formatting in layout search term \"{term}\": "
