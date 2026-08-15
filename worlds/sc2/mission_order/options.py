@@ -901,13 +901,14 @@ def _resolve_mission_spec(option_name: str, option_value: Any) -> 'MissionSlotDi
             f"Allowed keys are {MISSION_SLOT_KEYS}"
         )
 
-    mission_index: list[str | int] = (
+    mission_index = (
         ResolveOption(option_name, "index")
         .fallback_from_dict(option_value)
+        .resolve_range()
         .listify()
         .flatten_list()
         .map(lambda li: [str(x) for x in li], type_filter=list)
-        .require_list_of(str)
+        .require_list_of((str, int))
     )
     entrance = (
         ResolveOption(option_name, "entrance")
