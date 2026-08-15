@@ -231,8 +231,14 @@ class SC2MOGenCampaign:
         self.layouts = []
         self.exits = []
 
+        if self.option_single_layout_campaign:
+            assert len(data["layouts"]) == 1
         for index, (layout_name, layout_data) in enumerate(data["layouts"].items()):
-            layout = SC2MOGenLayout(world, (*self.id, index,), layout_name, layout_data)
+            if self.option_single_layout_campaign:
+                layout_id = self.id
+            else:
+                layout_id = (*self.id, index)
+            layout = SC2MOGenLayout(world, layout_id, layout_name, layout_data)
             self.layouts.append(layout)
 
             # Collect required missions (marked layouts' exits)
