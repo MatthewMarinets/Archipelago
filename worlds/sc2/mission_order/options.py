@@ -658,6 +658,7 @@ def _resolve_layout_dict(
             ResolveOption(layout_name, "size")
             .fallback_from_dict(layout_spec)
             .fallback_from_dict(preset_layout_spec)
+            .assert_greater_than_equal_to(1)
             .require(int)
         )
         if size is not None:
