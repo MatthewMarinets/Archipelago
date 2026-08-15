@@ -801,6 +801,7 @@ EXTRA_CAMPAIGN_DICT_KEYS = (
 def _build_static_preset(preset: 'CampaignPresetDict', options: dict[str, Any]) -> 'CampaignPresetDict':
     # Raceswap shuffling
     raceswaps = options.pop("shuffle_raceswaps", False)
+    layouts = preset.get("layouts", {})
     if not isinstance(raceswaps, bool):
         raise OptionError(
             f"Preset option \"shuffle_raceswaps\" received unknown value \"{raceswaps}\".\n"
@@ -809,23 +810,22 @@ def _build_static_preset(preset: 'CampaignPresetDict', options: dict[str, Any]) 
     elif raceswaps == True:
         # Remove "~ Raceswap Missions" operation from mission pool options
         # Also add raceswap variants to plando'd vanilla missions
-        for layout in preset.values():
-            if type(layout) == dict:
-                # Currently mission pools in layouts are always ["X campaign missions", "~ raceswap missions"]
-                layout_mission_pool: list[str] | None = layout.get("mission_pool", None)
-                if layout_mission_pool is not None:
-                    layout_mission_pool.pop()
-                    layout["mission_pool"] = layout_mission_pool
-                if "missions" in layout:
-                    for slot in layout["missions"]:
-                        # Currently mission pools in slots are always strings
-                        slot_mission_pool = slot.get("mission_pool", None)
-                        assert not isinstance(slot_mission_pool, (list, set))
-                        # Identify raceswappable missions by their race in brackets
-                        if slot_mission_pool is not None and slot_mission_pool[-1] == ")":
-                            mission_name = slot_mission_pool[:slot_mission_pool.rfind("(")]
-                            new_mission_pool = [f"{mission_name}({race})" for race in ["Terran", "Zerg", "Protoss"]]
-                            slot["mission_pool"] = new_mission_pool
+        for layout in layouts.values():
+            # Currently mission pools in layouts are always ["X campaign missions", "~ raceswap missions"]
+            layout_mission_pool: list[str] | None = layout.get("mission_pool", None)
+            if layout_mission_pool is not None:
+                layout_mission_pool.pop()
+                layout["mission_pool"] = layout_mission_pool
+            if "missions" in layout:
+                for slot in layout["missions"]:
+                    # Currently mission pools in slots are always strings
+                    slot_mission_pool = slot.get("mission_pool", None)
+                    assert not isinstance(slot_mission_pool, (list, set))
+                    # Identify raceswappable missions by their race in brackets
+                    if slot_mission_pool is not None and slot_mission_pool[-1] == ")":
+                        mission_name = slot_mission_pool[:slot_mission_pool.rfind("(")]
+                        new_mission_pool = [f"{mission_name}({race})" for race in ["Terran", "Zerg", "Protoss"]]
+                        slot["mission_pool"] = new_mission_pool
     # The presets are set up for no raceswaps, so raceswaps == False doesn't need to be covered
 
     # Mission pool selection
@@ -834,18 +834,17 @@ def _build_static_preset(preset: 'CampaignPresetDict', options: dict[str, Any]) 
         pass # use preset as it is
     elif missions == "vanilla_shuffled":
         # remove pre-set missions
-        for layout in preset.values():
-            if type(layout) == dict and "missions" in layout:
+        for layout in layouts.values():
+            if "missions" in layout:
                 for slot in layout["missions"]:
                     slot.pop("mission_pool", ())
     elif missions == "random":
         # remove pre-set missions and mission pools
-        for layout in preset.values():
-            if type(layout) == dict:
-                layout.pop("mission_pool", ())
-                if "missions" in layout:
-                    for slot in layout["missions"]:
-                        slot.pop("mission_pool", ())
+        for layout in layouts.values():
+            layout.pop("mission_pool", ())
+            if "missions" in layout:
+                for slot in layout["missions"]:
+                    slot.pop("mission_pool", ())
     else:
         raise OptionError(
             f"Preset option \"missions\" received unknown value \"{missions}\".\n"
@@ -856,19 +855,19 @@ def _build_static_preset(preset: 'CampaignPresetDict', options: dict[str, Any]) 
     keys = options.pop("keys", "none")
     if keys == "layouts":
         # remove keys from mission entry rules
-        for layout in preset.values():
-            if type(layout) == dict and "missions" in layout:
+        for layout in layouts.values():
+            if "missions" in layout:
                 for slot in layout["missions"]:
                     if "entry_rules" in slot:
                         slot["entry_rules"] = _remove_key_rules(slot["entry_rules"])
     elif keys == "missions":
         # remove keys from layout entry rules
-        for layout in preset.values():
-            if type(layout) == dict and "entry_rules" in layout:
+        for layout in layouts.values():
+            if "entry_rules" in layout:
                 layout["entry_rules"] = _remove_key_rules(layout["entry_rules"])
     elif keys == "progressive_layouts":
         # remove keys from mission entry rules, replace keys in layout entry rules with unique-track keys
-        for layout in preset.values():
+        for layout in layouts.values():
             if type(layout) == dict:
                 if "entry_rules" in layout:
                     layout["entry_rules"] = _make_key_rules_progressive(layout["entry_rules"], 0)
@@ -878,19 +877,18 @@ def _build_static_preset(preset: 'CampaignPresetDict', options: dict[str, Any]) 
                             slot["entry_rules"] = _remove_key_rules(slot["entry_rules"])
     elif keys == "progressive_missions":
         # remove keys from layout entry rules, replace keys in mission entry rules
-        for layout in preset.values():
-            if type(layout) == dict:
-                if "entry_rules" in layout:
-                    layout["entry_rules"] = _remove_key_rules(layout["entry_rules"])
-                if "missions" in layout:
-                    for slot in layout["missions"]:
-                        if "entry_rules" in slot:
-                            slot["entry_rules"] = _make_key_rules_progressive(slot["entry_rules"], 1)
+        for layout in layouts.values():
+            if "entry_rules" in layout:
+                layout["entry_rules"] = _remove_key_rules(layout["entry_rules"])
+            if "missions" in layout:
+                for slot in layout["missions"]:
+                    if "entry_rules" in slot:
+                        slot["entry_rules"] = _make_key_rules_progressive(slot["entry_rules"], 1)
     elif keys == "progressive_per_layout":
         # remove keys from layout entry rules, replace keys in mission entry rules with unique-track keys
         # specifically ignore layouts that have no entry rules (and are thus the first of their campaign)
-        for layout in preset.values():
-            if type(layout) == dict and "entry_rules" in layout:
+        for layout in layouts.values():
+            if "entry_rules" in layout:
                 layout["entry_rules"] = _remove_key_rules(layout["entry_rules"])
                 if "missions" in layout:
                     for slot in layout["missions"]:
@@ -898,16 +896,15 @@ def _build_static_preset(preset: 'CampaignPresetDict', options: dict[str, Any]) 
                             slot["entry_rules"] = _make_key_rules_progressive(slot["entry_rules"], 0)
     elif keys == "none":
         # remove keys from both layout and mission entry rules
-        for layout in preset.values():
-            if type(layout) == dict:
-                if "entry_rules" in layout:
-                    layout["entry_rules"] = _remove_key_rules(layout["entry_rules"])
-                if "missions" in layout:
-                    for slot in layout["missions"]:
-                        if "entry_rules" in slot:
-                            slot["entry_rules"] = _remove_key_rules(slot["entry_rules"])
+        for layout in layouts.values():
+            if "entry_rules" in layout:
+                layout["entry_rules"] = _remove_key_rules(layout["entry_rules"])
+            if "missions" in layout:
+                for slot in layout["missions"]:
+                    if "entry_rules" in slot:
+                        slot["entry_rules"] = _remove_key_rules(slot["entry_rules"])
     else:
-        raise ValueError(
+        raise OptionError(
             f"Preset option \"keys\" received unknown value \"{keys}\".\n"
             "Valid values are: none, missions, layouts, progressive_missions, progressive_layouts, progressive_per_layout"
         )
