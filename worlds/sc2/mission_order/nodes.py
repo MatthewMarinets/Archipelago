@@ -29,6 +29,7 @@ def parent_id(base_id: tuple[int, ...]) -> tuple[int, ...]:
 class MissionOrderNode(Protocol):
     id: tuple[int, ...]
     important_beat_event: bool
+    """Signals container types should export their exits to slot data for use in entry rules"""
 
     def children(self) -> Sequence['MissionOrderNode']: ...
 

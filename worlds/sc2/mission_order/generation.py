@@ -29,7 +29,7 @@ from .nodes import (
     SC2MOGenMission,
     parent_id,
 )
-from .entry_rules import EntryRule, SubRuleEntryRule, ItemEntryRule, CountMissionsEntryRule, BeatMissionsEntryRule
+from .entry_rules import EntryRule, SubRuleEntryRule, ItemEntryRule, CountMissionsEntryRule
 from .mission_pools import (
     SC2MOGenMissionPools, Difficulty, modified_difficulty_thresholds, STANDARD_DIFFICULTY_FILL_ORDER
 )
@@ -43,6 +43,7 @@ from ..rule_helpers import and_2_rules, and_3_rules
 if TYPE_CHECKING:
     from .. import SC2World
     from BaseClasses import CollectionState
+    from .types import EntryRuleDict
 
 
 logger = logging.getLogger("Starcraft 2")
@@ -107,7 +108,7 @@ def resolve_unlocks(mission_order: SC2MOGenMissionOrder) -> None:
     """Parses a mission order's entry rule dicts into entry rule objects."""
     rolling_rule_id = 0
     for campaign in mission_order.campaigns:
-        entry_rule = {
+        entry_rule: 'EntryRuleDict' = {
             "rules": campaign.option_entry_rules,
             "amount": -1
         }
@@ -144,7 +145,7 @@ def resolve_unlocks(mission_order: SC2MOGenMissionOrder) -> None:
 
 def _dict_to_entry_rule(
     mission_order: SC2MOGenMissionOrder,
-    data: dict[str, Any],
+    data: 'EntryRuleDict',
     start_node: MissionOrderNode,
     rule_id: int = -1
 ) -> EntryRule:
@@ -173,24 +174,34 @@ def _dict_to_entry_rule(
         for address in data["scope"]:
             resolved = _resolve_address(mission_order, address, start_node)
             objects.extend((obj, address) for obj in resolved)
-        visual_reqs = [obj.get_visual_requirement(start_node) for (obj, _) in objects]
-        missions: list[SC2MOGenMission]
-        if "amount" in data:
-            missions = [mission for (obj, _) in objects for mission in obj.get_missions() if not mission.option_empty]
-            if len(missions) == 0:
-                raise OptionError(f"Count rule did not find any missions at scopes: {data['scope']}")
-            return CountMissionsEntryRule(missions, data["amount"], visual_reqs)
-        missions = []
-        for (obj, address) in objects:
-            obj.important_beat_event = True
-            exits = obj.get_exits()
-            if len(exits) == 0:
-                raise OptionError(
-                    f"Address \"{address}\" found an unbeatable object. "
-                    "This should mean the address contains \"..\" too often."
-                )
-            missions.extend(exits)
-        return BeatMissionsEntryRule(missions, visual_reqs)
+        missions: list[SC2MOGenMission] = []
+        visual_reqs: list[str | SC2MOGenMission] = []
+        amount = data["amount"]
+        for obj, address in objects:
+            if isinstance(obj, SC2MOGenMission):
+                if not obj.option_empty:
+                    missions.append(obj)
+                    visual_reqs.append(obj)
+            else:
+                if amount > 0:
+                    this_node_missions = [mission for mission in obj.get_missions() if not mission.option_empty]
+                    missions.extend(this_node_missions)
+                    visual_reqs.extend(this_node_missions)
+                else:
+                    obj.important_beat_event = True
+                    exits = [mission for mission in obj.get_exits() if not mission.option_empty]
+                    if not exits:
+                        raise OptionError(
+                            f"Addres \"{address}\" found an unbeatable object. "
+                            "This likely means the address contains too many '..' terms."
+                        )
+                    missions.extend(exits)
+                    visual_reqs.append(obj.get_visual_requirement(start_node))
+        if len(missions) == 0:
+            raise OptionError(f"Count rule did not find any missions at scopes: {data['scope']}")
+        if amount < 0:
+            amount = len(missions)
+        return CountMissionsEntryRule(missions, amount, visual_reqs)
     raise OptionError(f"Invalid data for entry rule: {data}")
 
 

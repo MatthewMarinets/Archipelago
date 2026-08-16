@@ -789,8 +789,8 @@ def _resolve_entry_rule(option_name: str, option_value: dict) -> 'EntryRuleDict'
             scope.append(subscope)
         if not scope:
             raise OptionError(f"'{option_name}.scope' is empty, expected a mission slot or list of mission slots")
-        if amount is None or amount == -1:
-            amount = len(scope)
+        if amount is None:
+            amount = -1
         return {"scope": scope, "amount": amount}
     if "rules" in option_value:
         subrules = [
@@ -798,8 +798,8 @@ def _resolve_entry_rule(option_name: str, option_value: dict) -> 'EntryRuleDict'
             for index, subrule_dict in enumerate(option_value["rules"])
         ]
         # Make sure sub-rule rules have a specified amount
-        if amount is None or amount == -1:
-            amount = len(subrules)
+        if amount is None:
+            amount = -1
         return {"rules": subrules, "amount": amount}
 
     assert "items" in option_value

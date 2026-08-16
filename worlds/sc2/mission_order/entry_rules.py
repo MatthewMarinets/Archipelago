@@ -84,38 +84,6 @@ class RuleData(Protocol):
     def is_accessible(self, beaten_missions: set[int], received_items: dict[int, int]) -> bool: ...
 
 
-class BeatMissionsEntryRule(EntryRule):
-    missions_to_beat: List[SC2MOGenMission]
-    visual_reqs: List[Union[str, SC2MOGenMission]]
-
-    def __init__(self, missions_to_beat: List[SC2MOGenMission], visual_reqs: List[Union[str, SC2MOGenMission]]):
-        super().__init__()
-        self.missions_to_beat = missions_to_beat
-        self.visual_reqs = visual_reqs
-
-    def _is_fulfilled(self, beaten_missions: Set[SC2MOGenMission], in_region_check: bool) -> bool:
-        return beaten_missions.issuperset(self.missions_to_beat)
-
-    def _get_depth(self, beaten_missions: Set[SC2MOGenMission]) -> int:
-        return max(mission.min_depth for mission in self.missions_to_beat)
-
-    def to_lambda(self, player: int) -> Callable[[CollectionState], bool]:
-        return lambda state: state.has_all([mission.beat_item() for mission in self.missions_to_beat], player)
-
-    def to_slot_data(self) -> RuleData:
-        resolved_reqs: List[Union[str, int]] = [req if isinstance(req, str) else req.mission.id for req in self.visual_reqs]
-        mission_ids = [mission.mission.id for mission in self.missions_to_beat]
-        return BeatMissionsRuleData(
-            mission_ids,
-            resolved_reqs
-        )
-
-    def find_mandatory_mission(self) -> SC2MOGenMission | None:
-        if len(self.missions_to_beat) > 0:
-            return self.missions_to_beat[0]
-        return None
-
-
 @dataclass(slots=True)
 class BeatMissionsRuleData:
     mission_ids: list[int]
@@ -201,13 +169,13 @@ class CountMissionsEntryRule(EntryRule):
 
 @dataclass(slots=True)
 class CountMissionsRuleData:
-    mission_ids: List[int]
+    mission_ids: list[int]
     amount: int
-    visual_reqs: List[Union[str, int]]
+    visual_reqs: list[Union[str, int]]
     was_accessible: bool = True
 
-    def tooltip(self, indents: int, missions: Dict[int, SC2Mission], done_color: str, not_done_color: str) -> str:
-        indent = " ".join("" for _ in range(indents))
+    def tooltip(self, indents: int, missions: dict[int, SC2Mission], done_color: str, not_done_color: str) -> str:
+        indent = " " * indents
         if self.amount == len(self.mission_ids):
             amount = "all"
         else:
@@ -216,12 +184,14 @@ class CountMissionsRuleData:
             req = self.visual_reqs[0]
             req_str = missions[req].mission_name if isinstance(req, int) else req
             if self.amount == 1:
-                if type(req) == int:
+                if isinstance(req, int):
                     return f"Beat {req_str}"
                 return f"Beat any mission from {req_str}"
             return f"Beat {amount} missions from {req_str}"
         if self.amount == 1:
             tooltip = f"Beat any mission from:\n{indent}- "
+        elif self.amount == len(self.mission_ids):
+            tooltip = f"Beat all of these:\n{indent}- "
         else:
             tooltip = f"Beat {amount} missions from:\n{indent}- "
         reqs = [missions[req].mission_name if isinstance(req, int) else req for req in self.visual_reqs]
