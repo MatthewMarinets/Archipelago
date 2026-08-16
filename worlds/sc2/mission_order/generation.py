@@ -186,7 +186,7 @@ def _dict_to_entry_rule(
                 if amount > 0:
                     this_node_missions = [mission for mission in obj.get_missions() if not mission.option_empty]
                     missions.extend(this_node_missions)
-                    visual_reqs.extend(this_node_missions)
+                    visual_reqs.append(obj.get_visual_requirement(start_node))
                 else:
                     obj.important_beat_event = True
                     exits = [mission for mission in obj.get_exits() if not mission.option_empty]
