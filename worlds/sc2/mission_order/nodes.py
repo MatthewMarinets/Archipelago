@@ -149,7 +149,7 @@ class SC2MOGenMissionOrder:
 
     def get_slot_data(self) -> list[dict[str, Any]]:
         # [(campaign data, [(layout data, [[(mission data)]] )] )]
-        return [asdict(campaign.get_slot_data()) for campaign in self.campaigns]
+        return [campaign.get_slot_data() for campaign in self.campaigns]
 
     def search(
         self,
@@ -303,18 +303,18 @@ class SC2MOGenCampaign:
     def get_address_to_node(self, id_to_node: dict[tuple[int, ...], MissionOrderNode]) -> str:
         return f"{self.option_name}"
 
-    def get_slot_data(self) -> CampaignSlotData:
+    def get_slot_data(self) -> dict[str, Any]:
         if self.important_beat_event:
             exits = [slot.mission.id for slot in self.exits]
         else:
             exits = []
 
-        return CampaignSlotData(
+        return asdict(CampaignSlotData(
             self.get_visual_name(),
-            asdict(self.entry_rule.to_slot_data()),
+            self.entry_rule.to_slot_data(),
             exits,
-            [asdict(layout.get_slot_data()) for layout in self.layouts]
-        )
+            [layout.get_slot_data() for layout in self.layouts]
+        ))
 
 
 class SC2MOGenLayout:
@@ -546,14 +546,12 @@ class SC2MOGenLayout:
             return f"{self.option_name}"
         return campaign.get_address_to_node(id_to_node) + f"/{self.option_name}"
 
-    def get_slot_data(self) -> LayoutSlotData:
+    def get_slot_data(self) -> dict[str, Any]:
         mission_slots: list[list[MissionSlotData]] = [
             [
-                asdict(
-                    self.missions[idx].get_slot_data()
-                    if (idx >= 0 and not self.missions[idx].option_empty)
-                    else MissionSlotData.empty()
-                )
+                self.missions[idx].get_slot_data()
+                if (idx >= 0 and not self.missions[idx].option_empty)
+                else MissionSlotData.empty_slot_data()
                 for idx in column
             ]
             for column in self.layout_type.get_visual_layout()
@@ -563,12 +561,12 @@ class SC2MOGenLayout:
         else:
             exits = []
 
-        return LayoutSlotData(
+        return asdict(LayoutSlotData(
             self.get_visual_name(),
-            asdict(self.entry_rule.to_slot_data()),
+            self.entry_rule.to_slot_data(),
             exits,
             mission_slots
-        )
+        ))
 
 
 class SC2MOGenMission:
@@ -669,13 +667,13 @@ class SC2MOGenMission:
         index = layout.missions.index(self)
         return layout.get_address_to_node(id_to_node) + f"/{index}"
 
-    def get_slot_data(self) -> MissionSlotData:
-        return MissionSlotData(
+    def get_slot_data(self) -> dict[str, Any]:
+        return asdict(MissionSlotData(
             self.mission.id,
             [mission.mission.id for mission in self.prev],
             self.entry_rule.to_slot_data(),
             self.option_victory_cache,
-        )
+        ))
 
     def __str__(self) -> str:
         terms = [f"id={self.id}", f"mission={self.mission}"]

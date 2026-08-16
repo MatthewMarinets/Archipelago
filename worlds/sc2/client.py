@@ -1016,17 +1016,17 @@ class SC2Context(CommonContext):
             if self.slot_data_version >= 4:
                 self.custom_mission_order = [
                     CampaignSlotData(
-                        **{field:value for field, value in campaign_data.items() if field not in ["layouts", "entry_rule"]},
-                        entry_rule = SubRuleRuleData.parse_from_dict(campaign_data["entry_rule"]),
+                        **{field: value for field, value in campaign_data.items() if field not in ["layouts", "entry_rule"]},
+                        entry_rule=SubRuleRuleData.parse_from_dict(campaign_data["entry_rule"]),
                         layouts = [
                             LayoutSlotData(
-                                **{field:value for field, value in layout_data.items() if field not in ["missions", "entry_rule"]},
-                                entry_rule = SubRuleRuleData.parse_from_dict(layout_data["entry_rule"]),
+                                **{field: value for field, value in layout_data.items() if field not in ["missions", "entry_rule"]},
+                                entry_rule=SubRuleRuleData.parse_from_dict(layout_data["entry_rule"]),
                                 missions = [
                                     [
                                         MissionSlotData(
-                                            **{field:value for field, value in mission_data.items() if field != "entry_rule"},
-                                            entry_rule = SubRuleRuleData.parse_from_dict(mission_data["entry_rule"])
+                                            **{field: value for field, value in mission_data.items() if field != "entry_rule"},
+                                            entry_rule=SubRuleRuleData.parse_from_dict(mission_data["entry_rule"])
                                         ) for mission_data in column
                                     ] for column in layout_data["missions"]
                                 ]

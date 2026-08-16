@@ -1,7 +1,9 @@
 from __future__ import annotations
-from typing import Set, Callable, Dict, List, Union, TYPE_CHECKING, Any, NamedTuple, Iterable, Protocol
+from typing import (
+    Set, Callable, Dict, List, TYPE_CHECKING, Any, NamedTuple, Iterable, Protocol, TypedDict, NotRequired
+)
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ..mission_tables import SC2Mission
 from ..item.item_tables import item_table
@@ -60,7 +62,7 @@ class EntryRule(ABC):
         return lambda _: False
 
     @abstractmethod
-    def to_slot_data(self) -> RuleData:
+    def to_slot_data(self) -> 'RuleDataDict':
         """Used in the client to determine accessibility while playing and to populate tooltips."""
         pass
 
@@ -152,14 +154,17 @@ class CountMissionsEntryRule(EntryRule):
 
         return count_missions
 
-    def to_slot_data(self) -> RuleData:
-        resolved_reqs: list[str | int] = [req if isinstance(req, str) else req.mission.id for req in self.visual_reqs]
+    def to_slot_data(self) -> 'RuleDataDict':
+        visual_reqs: list[str | int] = [req if isinstance(req, str) else req.mission.id for req in self.visual_reqs]
         mission_ids = [mission.mission.id for mission in sorted(self.missions_to_count, key = lambda mission: mission.min_depth)]
-        return CountMissionsRuleData(
-            mission_ids,
-            self.target_amount,
-            resolved_reqs
-        )
+        result: 'CountMissionsRuleDataDict' = {
+            "mission_ids": mission_ids,
+            "visual_reqs": visual_reqs,
+        }
+        # Small optimization: we don't have to send the the amount if it's the default
+        if self.target_amount >= 0 and self.target_amount < len(mission_ids):
+            result["amount"] = self.target_amount
+        return result
 
     def find_mandatory_mission(self) -> SC2MOGenMission | None:
         if self.target_amount > 0 and self.target_amount == len(self.missions_to_count):
@@ -167,12 +172,22 @@ class CountMissionsEntryRule(EntryRule):
         return None
 
 
+class CountMissionsRuleDataDict(TypedDict):
+    mission_ids: list[int]
+    amount: NotRequired[int]
+    visual_reqs: list[int | str]
+
+
 @dataclass(slots=True)
 class CountMissionsRuleData:
     mission_ids: list[int]
-    amount: int
-    visual_reqs: list[Union[str, int]]
+    amount: int = -1
+    visual_reqs: list[int | str] = field(default_factory=list)
     was_accessible: bool = True
+
+    def __post_init__(self) -> None:
+        if self.amount < 0:
+            self.amount = len(self.mission_ids)
 
     def tooltip(self, indents: int, missions: dict[int, SC2Mission], done_color: str, not_done_color: str) -> str:
         indent = " " * indents
@@ -264,13 +279,13 @@ class SubRuleEntryRule(EntryRule):
 
         return count_rules
 
-    def to_slot_data(self) -> SubRuleRuleData:
+    def to_slot_data(self) -> 'RuleDataDict':
         sub_rules = [rule.to_slot_data() for rule in self.rules_to_check]
-        return SubRuleRuleData(
-            self.rule_id,
-            sub_rules,
-            self.target_amount
-        )
+        return {
+            "rule_id": self.rule_id,
+            "sub_rules": sub_rules,
+            "amount": self.target_amount,
+        }
 
     def find_mandatory_mission(self) -> SC2MOGenMission | None:
         if self.target_amount > 0 and self.target_amount == len(self.rules_to_check):
@@ -281,10 +296,16 @@ class SubRuleEntryRule(EntryRule):
         return None
 
 
+class SubRuleRuleDataDict(TypedDict):
+    rule_id: int
+    sub_rules: list['RuleDataDict']
+    amount: int
+
+
 @dataclass(slots=True)
 class SubRuleRuleData:
     rule_id: int
-    sub_rules: List[RuleData]
+    sub_rules: list[RuleData]
     amount: int
     was_accessible: bool = False
 
@@ -366,6 +387,7 @@ class SubRuleRuleData:
 
         return success
 
+
 class MissionEntryRules(NamedTuple):
     mission_rule: SubRuleRuleData
     layout_rule: SubRuleRuleData
@@ -391,16 +413,21 @@ class ItemEntryRule(EntryRule):
     def to_lambda(self, player: int) -> Callable[[CollectionState], bool]:
         return lambda state: state.has_all_counts(self.items_to_check, player)
 
-    def to_slot_data(self) -> RuleData:
+    def to_slot_data(self) -> 'RuleDataDict':
         item_ids = {item_table[item].code: amount for (item, amount) in self.items_to_check.items()}
         visual_reqs = [item if amount == 1 else str(amount) + "x " + item for (item, amount) in self.items_to_check.items()]
-        return ItemRuleData(
-            item_ids,
-            visual_reqs
-        )
+        return {
+            "item_ids": item_ids,
+            "visual_reqs": visual_reqs
+        }
 
     def find_mandatory_mission(self) -> SC2MOGenMission | None:
         return None
+
+
+class ItemRuleDataDict(TypedDict):
+    item_ids: dict[int, int]
+    visual_reqs: list[str]
 
 
 @dataclass(slots=True)
@@ -427,3 +454,6 @@ class ItemRuleData:
             item in received_items and received_items[item] >= amount
             for (item, amount) in self.item_ids.items()
         )
+
+
+RuleDataDict = SubRuleRuleDataDict | CountMissionsRuleDataDict | ItemRuleDataDict
