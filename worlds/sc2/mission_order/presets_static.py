@@ -802,6 +802,10 @@ def _build_static_preset(preset: 'CampaignPresetDict', options: dict[str, Any]) 
     # Raceswap shuffling
     raceswaps = options.pop("shuffle_raceswaps", False)
     layouts = preset.get("layouts", {})
+    layouts = {k: v for k, v in layouts.items()}
+    if "global" in preset:
+        # Also be sure to update the global preset
+        layouts["global"] = preset["global"]
     if not isinstance(raceswaps, bool):
         raise OptionError(
             f"Preset option \"shuffle_raceswaps\" received unknown value \"{raceswaps}\".\n"
