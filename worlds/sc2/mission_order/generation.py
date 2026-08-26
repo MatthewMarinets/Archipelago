@@ -192,7 +192,7 @@ def _dict_to_entry_rule(
                     exits = [mission for mission in obj.get_exits() if not mission.option_empty]
                     if not exits:
                         raise OptionError(
-                            f"Addres \"{address}\" found an unbeatable object. "
+                            f"Address \"{address}\" found an unbeatable object. "
                             "This likely means the address contains too many '..' terms."
                         )
                     missions.extend(exits)

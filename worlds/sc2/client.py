@@ -1026,7 +1026,7 @@ class SC2Context(CommonContext):
                                     [
                                         MissionSlotData(
                                             **{field: value for field, value in mission_data.items() if field != "entry_rule"},
-                                            entry_rule=SubRuleRuleData.parse_from_dict(mission_data["entry_rule"])
+                                            entry_rule=SubRuleRuleData.parse_from_dict(mission_data.get("entry_rule", {}))
                                         ) for mission_data in column
                                     ] for column in layout_data["missions"]
                                 ]
