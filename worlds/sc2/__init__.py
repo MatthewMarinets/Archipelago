@@ -807,7 +807,7 @@ def flag_allowed_orphan_items(world: SC2World, item_list: dict[str, FilterItem])
             item_names.MARINE_LASER_TARGETING_SYSTEM,
         ):
             item = item_list.get(item_name)
-            if item is not None:
+            if item is not None and ItemFilterFlags.UserExcluded not in item.flags:
                 terran_candidate_items.add(item_name)
     # These rules only trigger on Standard tactics
     if SC2Mission.BELLY_OF_THE_BEAST in missions and world.options.required_tactics == RequiredTactics.option_basic:
@@ -824,7 +824,7 @@ def flag_allowed_orphan_items(world: SC2World, item_list: dict[str, FilterItem])
             item_names.FIREBAT_MEDPACK,
         ):
             item = item_list.get(item_name)
-            if item is not None:
+            if item is not None and ItemFilterFlags.UserExcluded not in item.flags:
                 terran_candidate_items.add(item_name)
     if terran_candidate_items:
         sorted_items = sorted(terran_candidate_items)
