@@ -1622,8 +1622,13 @@ item_name_groups[ItemGroupNames.NEXUS_UNITS] = nexus_units = [
 ]
 item_name_groups[ItemGroupNames.AIUR_UNITS] = [
     item_names.ZEALOT, item_names.DRAGOON, item_names.SENTRY, item_names.AVENGER, item_names.HIGH_TEMPLAR,
-    item_names.IMMORTAL, item_names.REAVER, item_names.MOTHERSHIP_AIUR,
-    item_names.PHOENIX, item_names.SCOUT, item_names.ARBITER, item_names.CARRIER,
+    item_names.IMMORTAL, item_names.REAVER,
+    item_names.PHOENIX,
+    item_names.PULSAR,
+    item_names.SCOUT,
+    item_names.ARBITER,
+    item_names.CARRIER,
+    item_names.MOTHERSHIP_AIUR,
 ]
 item_name_groups[ItemGroupNames.NERAZIM_UNITS] = [
     item_names.CENTURION, item_names.STALKER, item_names.DARK_TEMPLAR, item_names.SIGNIFIER, item_names.DARK_ARCHON,
