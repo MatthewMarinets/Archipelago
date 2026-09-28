@@ -842,7 +842,7 @@ class SC2Context(CommonContext):
         self.enabled_heroes: frozenset[str] = EnabledHeroes.default
         self.base_hero_presence: dict[SC2Mission, int] = {}
         self.hero_presence: dict[SC2Mission, int] = {}
-        self.mercenary_highlanders: bool = False
+        self.mercenary_highlanders: int = 0
         self.kerrigan_levels_per_mission_completed = 0
         self.trade_enabled: int = EnableVoidTrade.default
         self.trade_age_limit: int = VoidTradeAgeLimit.default
@@ -1074,7 +1074,7 @@ class SC2Context(CommonContext):
                 slot_data.get("player_color_nova", ColorChoice.option_dark_grey)
             )
             self.show_war_council_nerfs = bool(slot_data.get("war_council_nerfs", WarCouncilNerfs.option_false))
-            self.mercenary_highlanders = bool(slot_data.get("mercenary_highlanders", MercenaryHighlanders.option_false))
+            self.mercenary_highlanders = slot_data.get("mercenary_highlanders", MercenaryHighlanders.option_false)
             self.generic_upgrade_missions = slot_data.get("generic_upgrade_missions", GenericUpgradeMissions.default)
             self.max_upgrade_level = slot_data.get("max_upgrade_level", MaxUpgradeLevel.default)
             self.generic_upgrade_research = slot_data.get("generic_upgrade_research", GenericUpgradeResearch.option_vanilla)
@@ -1104,11 +1104,12 @@ class SC2Context(CommonContext):
             self.maximum_supply_reduction_per_item = slot_data.get("maximum_supply_reduction_per_item", options.MaximumSupplyReductionPerItem.default)
             self.lowest_maximum_supply = slot_data.get("lowest_maximum_supply", options.LowestMaximumSupply.default)
             self.research_cost_reduction_per_item = slot_data.get("research_cost_reduction_per_item", options.ResearchCostReductionPerItem.default)
-            hero_presence_args = slot_data.get("hero_presence", {})
-            if hero_presence_args:
-                self.base_hero_presence = self.unpack_hero_presence(hero_presence_args)
-            else:
+            hero_presence_args = slot_data.get("hero_presence")
+            if hero_presence_args is None:
+                # slot data predates creation of hero_presence
                 self.base_hero_presence = self.default_hero_presence(True)
+            else:
+                self.base_hero_presence = self.unpack_hero_presence(hero_presence_args)
             # # TODO (Snarky): NCO Nova is currently disabled. Revisit if enabled.
             # # Generic Nova presence never made it to live, so it doesn't need compat code
             # if self.slot_data_version < 4:

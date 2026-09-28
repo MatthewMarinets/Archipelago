@@ -113,7 +113,7 @@ def fill_slot_data(world: 'SC2World') -> Sc2SlotDataDict:
         "custom_mission_order": world.custom_mission_order.get_slot_data(),
     }
     if world.options.game_speed != options.GameSpeed.option_default:
-        slot_data["game_speed"] = int(world.options.game_difficulty)
+        slot_data["game_speed"] = int(world.options.game_speed)
     if world.options.war_council_nerfs != options.WarCouncilNerfs.option_false:
         slot_data["war_council_nerfs"] = int(world.options.war_council_nerfs)
     if world.options.mercenary_highlanders != options.MercenaryHighlanders.option_false:
