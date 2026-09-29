@@ -26,15 +26,13 @@ from .locations import (
     get_location_types,
     get_location_flags,
     get_plando_locations,
-    is_victory_cache,
     location_id_to_type,
     location_id_to_flags,
     LOCATION_NAME_TO_ID,
-    VICTORY_MODULO,
 )
 from .mission_order.layout_types import Gauntlet
 from .options import (
-    get_option_value, LocationInclusion, KerriganLevelItemDistribution,
+    LocationInclusion, KerriganLevelItemDistribution,
     KerriganPrimalStatus, StarterUnit, SpearOfAdunPresence,
     SpearOfAdunPassiveAbilityPresence, Starcraft2Options,
     GrantStoryTech, GenericUpgradeResearch, RequiredTactics,
@@ -42,7 +40,7 @@ from .options import (
     VanillaItemsOnly, ExcludeOverpoweredItems,
     is_mission_in_soa_presence,
 )
-from . import options
+from . import options, slot_data_config
 from .rules import SC2Logic, get_required_kerrigan_levels
 from . import settings
 from .pool_filter import filter_items
@@ -252,11 +250,13 @@ class SC2World(World):
         assert self.logic
 
         setup_events(self.player, self.locked_locations, self.location_cache)
-        set_up_filler_items_distribution(self)
+        remove_nova_items, remove_kerrigan_items, remove_artanis_items = get_hero_item_removal_flags(self)
+
+        set_up_filler_items_distribution(self, remove_kerrigan_items)
         item_list: list[FilterItem] = create_and_flag_explicit_item_locks_and_excludes(self)
         indexed_item_list: dict[str, FilterItem] = {filter_item.name: filter_item for filter_item in item_list}
         flag_excludes_by_faction_presence(self, item_list)
-        flag_mission_based_item_excludes(self, item_list)
+        flag_mission_based_item_excludes(self, item_list, remove_nova_items, remove_kerrigan_items, remove_artanis_items)
         flag_allowed_orphan_items(self, indexed_item_list)
         flag_start_inventory(self, item_list)
         flag_unused_upgrade_types(self, item_list)
@@ -265,7 +265,7 @@ class SC2World(World):
         flag_war_council_items(self, item_list)
         flag_and_add_resource_locations(self, item_list)
         flag_mission_order_required_items(self, item_list)
-        pruned_items: list[StarcraftItem] = prune_item_pool(self, item_list)
+        pruned_items: list[StarcraftItem] = prune_item_pool(self, item_list, remove_kerrigan_items)
 
         start_inventory = [item for item in pruned_items if ItemFilterFlags.StartInventory in item.filter_flags]
         pool = [item for item in pruned_items if ItemFilterFlags.StartInventory not in item.filter_flags]
@@ -288,47 +288,7 @@ class SC2World(World):
         return self.random.choices(tuple(self.filler_items_distribution), weights=self.filler_items_distribution.values())[0]  # type: ignore
 
     def fill_slot_data(self) -> Mapping[str, Any]:
-        assert self.logic
-        slot_data: dict[str, Any] = {}
-        for option_name in [field.name for field in fields(Starcraft2Options)]:
-            option = get_option_value(self, option_name)
-            if type(option) in {str, int}:
-                slot_data[option_name] = int(option)
-
-        slot_data["plando_locations"] = get_plando_locations(self)
-        slot_data["hero_presence"] = pack_hero_presence(self.hero_presence)
-        slot_data["grant_hero_items"] = [mission.id for mission in self.logic.grant_hero_items]
-        slot_data["final_mission_ids"] = self.custom_mission_order.get_final_mission_ids()
-        slot_data["custom_mission_order"] = self.custom_mission_order.get_slot_data()
-        slot_data["version"] = 5
-        if self.options.mission_order_scouting != MissionOrderScouting.option_none:
-            mission_item_classification: dict[str, int] = {}
-            for location in self.multiworld.get_locations(self.player):
-                # Event do not hold items
-                if not location.is_event:
-                    assert location.address is not None
-                    assert location.item is not None
-                    if is_victory_cache(location.address):
-                        # Ensure that if there are multiple items given for finishing a mission and that at least
-                        # one is progressive, the flag kept is progressive.
-                        location_id = (location.address // VICTORY_MODULO) * VICTORY_MODULO
-                        location_name = self.location_id_to_name[location_id]
-                        old_classification = mission_item_classification.get(location_name, 0)
-                        mission_item_classification[location_name] = old_classification | location.item.classification.as_flag()
-                    else:
-                        mission_item_classification[location.name] = location.item.classification.as_flag()
-            slot_data["mission_item_classification"] = mission_item_classification
-
-        # Disable trade if there is no trade partner
-        traders = [
-            world
-            for world in self.multiworld.worlds.values()
-            if world.game == self.game and world.options.enable_void_trade == EnableVoidTrade.option_true  # type: ignore
-        ]
-        if len(traders) < 2:
-            slot_data["enable_void_trade"] = EnableVoidTrade.option_false
-
-        return slot_data
+        return slot_data_config.fill_slot_data(self)
 
     def pre_fill(self) -> None:
         assert self.logic is not None
@@ -398,14 +358,6 @@ class SC2World(World):
                                         hint_data[self.player][location.address] = mission_position_name
 
 
-def pack_hero_presence(presence: dict[SC2Mission, HeroFlag]) -> dict[str, int]:
-    result: dict[str, int] = {}
-    for mission, hero_flag in presence.items():
-        if hero_flag != HeroFlag.NONE:
-            result[str(mission.id)] = hero_flag.value
-    return result
-
-
 def _get_column_display(index: int, single_row_layout: bool) -> str:
     """
     Helper function to display column name
@@ -429,6 +381,36 @@ def setup_events(player: int, locked_locations: list[str], location_cache: list[
             locked_locations.append(location.name)
 
             location.place_locked_item(item)
+
+
+def get_hero_item_removal_flags(world: SC2World) -> tuple[bool, bool, bool]:
+    missions = world.custom_mission_order.get_used_missions()
+        # Hero items are removed if all of the missions that hero appears in have tech granted
+    # Tech granted calculation happens in mission_order/generation.py
+    remove_kerrigan_items = True
+    remove_nova_items = True
+    remove_artanis_items = True
+    for mission in missions:
+        if mission in world.logic.grant_hero_items:
+            continue
+        if MissionFlag.HeroSystemUnsupported in mission.flags:
+            heroes = HeroFlag.NONE
+            if MissionFlag.Nova in mission.flags:
+                heroes |= HeroFlag.NOVA
+            if MissionFlag.Kerrigan in mission.flags:
+                heroes |= HeroFlag.KERRIGAN
+            if MissionFlag.Artanis in mission.flags:
+                heroes |= HeroFlag.ARTANIS
+        else:
+            heroes = world.hero_presence.get(mission, HeroFlag.NONE)
+        if HeroFlag.NOVA & heroes:
+            remove_nova_items = False
+        if HeroFlag.KERRIGAN & heroes:
+            print(f"###              Kerrigan enabled because {mission}")
+            remove_kerrigan_items = False
+        if HeroFlag.ARTANIS & heroes:
+            remove_artanis_items = False
+    return remove_nova_items, remove_kerrigan_items, remove_artanis_items
 
 
 def create_and_flag_explicit_item_locks_and_excludes(world: SC2World) -> list[FilterItem]:
@@ -663,38 +645,17 @@ def flag_excludes_by_faction_presence(world: SC2World, item_list: list[FilterIte
             item.flags |= ItemFilterFlags.FilterExcluded
 
 
-def flag_mission_based_item_excludes(world: SC2World, item_list: list[FilterItem]) -> None:
+def flag_mission_based_item_excludes(
+    world: SC2World,
+    item_list: list[FilterItem],
+    remove_nova_items: bool,
+    remove_kerrigan_items: bool,
+    remove_artanis_items: bool,
+) -> None:
     """
     Excludes items based on mission / campaign presence: Nova Gear, Kerrigan abilities, SOA
     """
     missions = world.custom_mission_order.get_used_missions()
-
-    # Hero items are removed if all of the missions that hero appears in have tech granted
-    # Tech granted calculation happens in mission_order/generation.py
-    remove_kerrigan_items = True
-    remove_nova_items = True
-    remove_artanis_items = True
-    for mission in missions:
-        if mission in world.logic.grant_hero_items:
-            continue
-        if MissionFlag.HeroSystemUnsupported in mission.flags:
-            heroes = HeroFlag.NONE
-            if MissionFlag.Nova in mission.flags:
-                heroes |= HeroFlag.NOVA
-            if MissionFlag.Kerrigan in mission.flags:
-                heroes |= HeroFlag.KERRIGAN
-            if MissionFlag.Artanis in mission.flags:
-                heroes |= HeroFlag.ARTANIS
-        else:
-            heroes = world.hero_presence.get(mission, HeroFlag.NONE)
-        if HeroFlag.NOVA & heroes:
-            remove_nova_items = False
-        if HeroFlag.KERRIGAN & heroes:
-            remove_kerrigan_items = False
-        if HeroFlag.ARTANIS & heroes:
-            remove_artanis_items = False
-
-    world.remove_kerrigan_items = remove_kerrigan_items
 
     # TvX build missions -- check flags
     if world.options.take_over_ai_allies:
@@ -741,14 +702,11 @@ def flag_mission_based_item_excludes(world: SC2World, item_list: list[FilterItem
     else:
         soa_passive_presence = False
 
-
-
     for item in item_list:
         # Filter Nova equipment if you never get Nova
         if (item.name in item_groups.nova_equipment) and remove_nova_items:
             item.flags |= ItemFilterFlags.FilterExcluded
 
-        # Todo(mm): How should no-build only / grant_story_tech affect excluding Kerrigan items?
         # Exclude Primal form based on Kerrigan presence or primal form option
         if (item.name == item_names.KERRIGAN_PRIMAL_FORM
             and (remove_kerrigan_items or world.options.kerrigan_primal_status != KerriganPrimalStatus.option_item)
@@ -1105,7 +1063,9 @@ def flag_mission_order_required_items(world: SC2World, item_list: list[FilterIte
             locks_done[item.name] += 1
 
 
-def prune_item_pool(world: SC2World, item_list: list[FilterItem]) -> list[StarcraftItem]:
+def prune_item_pool(
+    world: SC2World, item_list: list[FilterItem], remove_kerrigan_items: bool
+) -> list[StarcraftItem]:
     """Prunes the item pool size to be less than the number of available locations"""
 
     item_list = [
@@ -1131,7 +1091,7 @@ def prune_item_pool(world: SC2World, item_list: list[FilterItem]) -> list[Starcr
             ap_item.classification = ItemClassification.progression
         pool.append(ap_item)
 
-    fill_pool_with_kerrigan_levels(world, pool)
+    fill_pool_with_kerrigan_levels(world, pool, remove_kerrigan_items)
     filtered_pool = filter_items(world, world.location_cache, pool)
     return filtered_pool
 
@@ -1149,31 +1109,31 @@ def pad_item_pool_with_filler(world: SC2World, num_items: int, pool: list[Starcr
         pool.append(item)
 
 
-def set_up_filler_items_distribution(world: SC2World) -> None:
+def set_up_filler_items_distribution(world: SC2World, remove_kerrigan_items: bool) -> None:
     world.filler_items_distribution = world.options.filler_items_distribution.value.copy()
 
-    prune_fillers(world)
+    prune_fillers(world, remove_kerrigan_items)
     if sum(world.filler_items_distribution.values()) == 0:
         world.filler_items_distribution = FillerItemsDistribution.default.copy()
-    prune_fillers(world)
+    prune_fillers(world, remove_kerrigan_items)
 
 
-def prune_fillers(world):
+def prune_fillers(world: SC2World, remove_kerrigan_items: bool):
     mission_flags = world.custom_mission_order.get_used_flags()
     include_protoss = (
-            MissionFlag.Protoss in mission_flags
-            or (world.options.take_over_ai_allies and (MissionFlag.AiProtossAlly in mission_flags))
+        MissionFlag.Protoss in mission_flags
+        or (world.options.take_over_ai_allies and (MissionFlag.AiProtossAlly in mission_flags))
     )
     generic_upgrade_research = world.options.generic_upgrade_research
     if not include_protoss:
         world.filler_items_distribution.pop(item_names.SHIELD_REGENERATION, 0)
-    if world.remove_kerrigan_items:
+    if remove_kerrigan_items:
         world.filler_items_distribution.pop(item_names.KERRIGAN_LEVELS_1, 0)
     if (generic_upgrade_research in
-            [
-                GenericUpgradeResearch.option_always_auto,
-                GenericUpgradeResearch.option_auto_in_build
-            ]
+        [
+            GenericUpgradeResearch.option_always_auto,
+            GenericUpgradeResearch.option_auto_in_build
+        ]
     ):
         world.filler_items_distribution.pop(item_names.UPGRADE_RESEARCH_SPEED, 0)
         world.filler_items_distribution.pop(item_names.UPGRADE_RESEARCH_COST, 0)
@@ -1202,9 +1162,9 @@ def create_item_with_correct_settings(player: int, name: str, filter_flags: Item
     return item
 
 
-def fill_pool_with_kerrigan_levels(world: SC2World, item_pool: list[StarcraftItem]):
+def fill_pool_with_kerrigan_levels(world: SC2World, item_pool: list[StarcraftItem], remove_kerrigan_items: bool):
     item_levels = world.options.kerrigan_level_item_sum.value
-    if world.remove_kerrigan_items:
+    if remove_kerrigan_items:
         return
     missions = world.custom_mission_order.get_used_missions()
     missions_from_levels = (
