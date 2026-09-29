@@ -856,7 +856,7 @@ class SC2Context(CommonContext):
         self.difficulty_damage_modifier: int = DifficultyDamageModifier.default
         self.mission_order_scouting = MissionOrderScouting.option_none
         self.mission_item_classification: dict[str, int] | None = None
-        self.show_war_council_nerfs: bool = False
+        self.show_war_council_nerfs: int = 0
 
     async def server_auth(self, password_requested: bool = False) -> None:
         self.game = STARCRAFT2
@@ -1073,7 +1073,7 @@ class SC2Context(CommonContext):
                 self.slot_data_version,
                 slot_data.get("player_color_nova", ColorChoice.option_dark_grey)
             )
-            self.show_war_council_nerfs = bool(slot_data.get("war_council_nerfs", WarCouncilNerfs.option_false))
+            self.show_war_council_nerfs = slot_data.get("war_council_nerfs", WarCouncilNerfs.option_false)
             self.mercenary_highlanders = slot_data.get("mercenary_highlanders", MercenaryHighlanders.option_false)
             self.generic_upgrade_missions = slot_data.get("generic_upgrade_missions", GenericUpgradeMissions.default)
             self.max_upgrade_level = slot_data.get("max_upgrade_level", MaxUpgradeLevel.default)
