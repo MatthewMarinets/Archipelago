@@ -169,7 +169,7 @@ class MissionClient:
             try:
                 await self.on_step()
             except Exception as ex:
-                logger.error(ex)
+                logger.exception(ex)
 
     async def on_step(self) -> None:
         # @assume setup is done
@@ -833,6 +833,7 @@ def calculate_items(ctx: 'SC2Context', mission_id: int) -> dict[SC2Race, list[in
             # todo(mm): Replace this with some other in-game buff when the mod can be updated
             # Grant rifle
             item_data = item_tables.item_table[item_names.NOVA_C20A_CANISTER_RIFLE]
+            item_id = item_mod_ids.item_id_table[item_names.NOVA_C20A_CANISTER_RIFLE]
             accumulators[item_data.race][item_id.item_type.flag_word] |= 1 << item_id.index
 
     # Fix Shields from generic upgrades by unit class (Maximum of ground/air upgrades)
