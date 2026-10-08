@@ -899,7 +899,7 @@ def calculate_items(ctx: 'SC2Context', mission_id: int) -> dict[SC2Race, list[in
         num_missions = int((ctx.generic_upgrade_missions / 100) * total_missions)
         completed = len([mission_id for mission_id in ctx.mission_id_to_location_ids if ctx.is_mission_completed(mission_id)])
         upgrade_count = min(completed // num_missions, ctx.max_upgrade_level) if num_missions > 0 else ctx.max_upgrade_level
-        upgrade_count = min(upgrade_count, item_tables.WEAPON_ARMOR_UPGRADE_MAX_LEVEL)
+        upgrade_count = min(upgrade_count, item_tables.WA_MAX_LEVEL)
 
         # Equivalent to "Progressive Weapon/Armor Upgrade" item
         global_upgrades: set[str] = options.upgrade_included_names[options.GenericUpgradeItems.option_bundle_all]
